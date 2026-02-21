@@ -1,18 +1,57 @@
-#include <Arduino.h>
+#include "SavedWifi.h"
+#include "Web.h"
+#include <ESP8266mDNS.h>
+#include <ElegantOTA.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#include "FsManager.h"
+#include "LCD.h"
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+
+
+void setup()
+{
+    Serial.begin(9600);
+    fsInit();
+    lcdInit();
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+
+   
+
+
+    lcdClear();
+    lcdPrint("Loading...", 10, 40, TFT_RED, 3);
+
+
+    // loadConfig();
+    loadWiFiList();
+
+    WiFi.mode(WIFI_STA);
+
+    if (!connectSavedWiFi()) {
+        startAP();
+    }
+
+    setupWeb();
+
+    tft.fillScreen(TFT_BLACK);
+    digitalWrite(16, HIGH);
+
+    lcdClear();
+    lcdPrint("HTTP server started", 10, 40, TFT_RED, 2);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop()
+{
+#if defined(ESP8266)
+    if (WiFi.status() != WL_CONNECTED) {
+        MDNS.update();
+    }
+#endif
+    server.handleClient();
+    ElegantOTA.loop();
+   
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}
+

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP File Manager</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --card: #ffffff;
+        }
+        body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        
+        h2 { margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Upload Section */
+        .upload-zone { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; transition: 0.3s; }
+        .upload-zone:hover { border-color: var(--primary); background: #eff6ff; }
+        input[type="file"] { margin-bottom: 10px; }
+        
+        /* Table Style */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; }
+        
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        .btn-upload { background: var(--primary); color: white; }
+        .btn-delete { background: #fee2e2; color: var(--danger); font-size: 0.85rem; }
+        .btn-delete:hover { background: var(--danger); color: white; }
+        .btn-refresh { background: #e2e8f0; color: #475569; font-size: 0.9rem; }
+        
+        .status { margin-top: 10px; padding: 10px; border-radius: 6px; display: none; }
+        .loading { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>
+            📁 File Manager
+            <button class="btn btn-refresh" onclick="fetchFiles()">🔄 Refresh</button>
+        </h2>
+
+        <div class="upload-zone">
+            <input type="file" id="fileInput">
+            <button class="btn btn-upload" onclick="uploadFile()">Upload File</button>
+            <div id="uploadStatus" class="status"></div>
+        </div>
+
+        <div id="tableContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nama File</th>
+                        <th>Ukuran</th>
+                        <th style="text-align: right;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="fileList">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileListElement = document.getElementById('fileList');
+    const uploadStatus = document.getElementById('uploadStatus');
+
+    // 1. AMBIL DAFTAR FILE (GET /fs/list)
+    async function fetchFiles() {
+        try {
+            const response = await fetch('/fs/list');
+            const files = await response.json(); // Ekspektasi return: [{"name":"test.txt", "size":123}]
+            
+            fileListElement.innerHTML = '';
+            files.forEach(file => {
+                const row = `
+                    <tr>
+                        <td>${file.name}</td>
+                        <td>${formatBytes(file.size)}</td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-delete" onclick="deleteFile('${file.name}')">Hapus</button>
+                        </td>
+                    </tr>
+                `;
+                fileListElement.innerHTML += row;
+            });
+        } catch (err) {
+            console.error('Gagal mengambil file:', err);
+        }
+    }
+
+    // 2. UPLOAD FILE (POST /fs/upload)
+    async function uploadFile() {
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput.files.length === 0) return alert('Pilih file dulu!');
+
+        const formData = new FormData();
+        formData.append('data', fileInput.files[0], '/' + fileInput.files[0].name);
+
+        showStatus('Sedang mengunggah...', '#e0f2fe', '#0369a1');
+
+        try {
+            const response = await fetch('/fs/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                showStatus('Upload Berhasil!', '#dcfce7', '#15803d');
+                fileInput.value = '';
+                fetchFiles();
+            } else {
+                throw new Error('Upload gagal');
+            }
+        } catch (err) {
+            showStatus('Gagal: ' + err.message, '#fee2e2', '#b91c1c');
+        }
+    }
+
+    // 3. HAPUS FILE (POST /fs/delete)
+    async function deleteFile(path) {
+        if (!confirm(`Hapus file ${path}?`)) return;
+
+        const formData = new FormData();
+        formData.append('path', '/' + path);
+
+        try {
+            const response = await fetch('/fs/delete', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                fetchFiles();
+            } else {
+                alert('Gagal menghapus file');
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    }
+
+    // Helper: Format Ukuran File
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // Helper: Tampilkan Notifikasi
+    function showStatus(msg, bg, color) {
+        uploadStatus.innerText = msg;
+        uploadStatus.style.display = 'block';
+        uploadStatus.style.backgroundColor = bg;
+        uploadStatus.style.color = color;
+        setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+    }
+
+    // Load data pertama kali
+    window.onload = fetchFiles;
+</script>
+
+</body>
+</html>
