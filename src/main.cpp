@@ -46,8 +46,11 @@ void loop()
     }
 #endif
     server.handleClient();
-    ElegantOTA.loop();
+    // ElegantOTA.loop();
     lcdApiLoop();
+    if (otaEnabled) {
+        ElegantOTA.loop();
+    }
 }
 
 

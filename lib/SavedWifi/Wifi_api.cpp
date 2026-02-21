@@ -1,6 +1,8 @@
 #include "Wifi_api.h"
-#include "./SavedWifi.h"
+#include "SavedWifi.h"
 #include "index_html.h"
+
+bool otaEnabled = false;
 
 void setupWifiApi(ESP8266WebServer &server)
 {

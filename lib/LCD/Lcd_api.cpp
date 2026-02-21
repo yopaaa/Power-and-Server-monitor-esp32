@@ -13,17 +13,10 @@ static int slideIndex = 0;
 static String slideFiles[20];
 static int slideCount = 0;
 
-// ===== JPEG Callback =====
-// bool tft_output(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *bitmap)
-// {
-//     if (y >= tft.height())
-//         return false;
-//     tft.pushImage(x, y, w, h, bitmap);
-//     return true;
-// }
+
 bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap)
 {
-    if (y >= tft.height()) return false;
+    // if (y >= tft.height()) return false;
     tft.pushImage(x, y, w, h, bitmap);
     return true;
 }
@@ -138,7 +131,8 @@ void lcdApiLoop()
         return;
 
     lcdClear();
-    TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex]);
+    // TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex]);
+    TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex].c_str(), LittleFS);
 
     slideIndex++;
     if (slideIndex >= slideCount)
