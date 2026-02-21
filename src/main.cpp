@@ -5,7 +5,7 @@
 
 #include "FsManager.h"
 #include "LCD.h"
-
+#include "Lcd_api.h"
 
 
 void setup()
@@ -17,12 +17,8 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
-   
-
-
     lcdClear();
     lcdPrint("Loading...", 10, 40, TFT_RED, 3);
-
 
     // loadConfig();
     loadWiFiList();
@@ -51,7 +47,7 @@ void loop()
 #endif
     server.handleClient();
     ElegantOTA.loop();
-   
+    lcdApiLoop();
 }
 
 

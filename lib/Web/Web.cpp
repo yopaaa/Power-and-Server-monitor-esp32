@@ -4,6 +4,7 @@
 #include <ElegantOTA.h>
 #include "FsApi.h"
 #include "Wifi_api.h"
+#include "Lcd_api.h"
 
 ESP8266WebServer server(80);
 
@@ -37,6 +38,7 @@ void setupWeb()
     
     setupFsApi(server);
     setupWifiApi(server);
+    setupLcdApi(server);
 
     server.begin();
     Serial.println("Web server running");

@@ -34,6 +34,25 @@ void setupFsApi(ESP8266WebServer &server)
         server.send(200, "application/json", fsListJson());
     });
 
+    server.on("/fs/info", HTTP_GET, [&server]() {
+
+        FSInfo fs_info;
+        LittleFS.info(fs_info);
+
+        size_t total = fs_info.totalBytes;
+        size_t used  = fs_info.usedBytes;
+        size_t free  = total - used;
+
+        String json = "{";
+        json += "\"total\":" + String(total) + ",";
+        json += "\"used\":"  + String(used)  + ",";
+        json += "\"free\":"  + String(free)  + ",";
+        json += "\"usedPercent\":" + String((used * 100) / total);
+        json += "}";
+
+        server.send(200, "application/json", json);
+    });
+
     // DELETE FILE
     server.on("/fs/delete", HTTP_POST, [&server]() {
         if (!server.hasArg("path")) {
