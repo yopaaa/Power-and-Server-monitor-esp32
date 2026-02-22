@@ -13,14 +13,6 @@ static int slideIndex = 0;
 static String slideFiles[20];
 static int slideCount = 0;
 
-
-bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap)
-{
-    // if (y >= tft.height()) return false;
-    tft.pushImage(x, y, w, h, bitmap);
-    return true;
-}
-
 void loadSlideFiles()
 {
     slideCount = 0;
@@ -38,9 +30,6 @@ void loadSlideFiles()
 
 void setupLcdApi(ESP8266WebServer &server)
 {
-    TJpgDec.setCallback(tft_output);
-    TJpgDec.setSwapBytes(true);
-
     // ===== SHOW IMAGE =====
     server.on("/lcd/show", HTTP_GET, [&server]() {
         slideshowActive = false;
@@ -90,7 +79,7 @@ void setupLcdApi(ESP8266WebServer &server)
         int y = server.hasArg("y") ? server.arg("y").toInt() : 40;
         int size = server.hasArg("size") ? server.arg("size").toInt() : 2;
 
-        lcdClear();
+        // lcdClear();
         lcdPrint(msg, x, y, TFT_RED, size);
 
         server.send(200, "application/json", "{\"status\":\"text displayed\"}");

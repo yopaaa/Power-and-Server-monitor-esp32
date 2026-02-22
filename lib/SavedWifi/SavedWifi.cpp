@@ -1,11 +1,38 @@
 #include "./SavedWifi.h"
 #include "./Web.h"
+#include "LCD.h"
 #include <ArduinoJson.h>
 #include <ESP8266mDNS.h>
 #include <LittleFS.h>
+#include <time.h>
 
 WiFiCred wifiList[MAX_WIFI];
 uint8_t wifiCount = 0;
+
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 7 * 3600; // WIB
+const int daylightOffset_sec = 0;
+
+void initNTP()
+{
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+    Serial.println("Waiting NTP...");
+
+    unsigned long start = millis();
+    time_t now = time(nullptr);
+
+    while (now < 100000 && millis() - start < 10000) {
+        delay(200);
+        now = time(nullptr);
+    }
+
+    if (now < 100000) {
+        Serial.println("NTP Failed");
+    } else {
+        Serial.println("NTP Ready");
+    }
+}
 
 void saveWiFiList()
 {
@@ -129,7 +156,8 @@ bool connectSavedWiFi()
                 WiFi.mode(WIFI_STA);
 
                 if (wifiList[i].useStatic) {
-                    WiFi.config(wifiList[i].ip, wifiList[i].gw, wifiList[i].sn);
+                    IPAddress dns(8,8,8,8);
+                    WiFi.config(wifiList[i].ip, wifiList[i].gw, wifiList[i].sn, dns);
                 }
 
                 WiFi.begin(wifiList[i].ssid.c_str(), wifiList[i].pass.c_str());
@@ -145,6 +173,7 @@ bool connectSavedWiFi()
                         Serial.print("Gateway     : ");
                         Serial.println(WiFi.gatewayIP());
                         Serial.println("--------------------------");
+                        initNTP();
                         return true;
                     }
                     delay(500);
@@ -228,4 +257,5 @@ void startAP()
 
     // Tambahkan service HTTP agar mDNS lebih mudah ditemukan oleh browser
     MDNS.addService("http", "tcp", 80);
+    showCenterImage("/qr-wifi.jpg");
 }

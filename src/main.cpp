@@ -7,7 +7,7 @@
 #include "LCD.h"
 #include "Lcd_api.h"
 
-
+#include "Analog_clock.h"
 void setup()
 {
     Serial.begin(9600);
@@ -16,9 +16,6 @@ void setup()
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
-
-    lcdClear();
-    lcdPrint("Loading...", 10, 40, TFT_RED, 3);
 
     // loadConfig();
     loadWiFiList();
@@ -31,11 +28,10 @@ void setup()
 
     setupWeb();
 
-    tft.fillScreen(TFT_BLACK);
-    digitalWrite(16, HIGH);
-
-    lcdClear();
+    // lcdClear();
     lcdPrint("HTTP server started", 10, 40, TFT_RED, 2);
+
+    drawDial();
 }
 
 void loop()
@@ -51,6 +47,8 @@ void loop()
     if (otaEnabled) {
         ElegantOTA.loop();
     }
+
+    updateClock();
 }
 
 
