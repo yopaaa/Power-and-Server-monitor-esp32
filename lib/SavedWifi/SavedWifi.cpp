@@ -2,12 +2,19 @@
 #include "./Web.h"
 #include "LCD.h"
 #include <ArduinoJson.h>
-#include <ESP8266mDNS.h>
-#include <LittleFS.h>
+
+#include <ESPmDNS.h>
+
+
+// #include <LittleFS.h>
 #include <time.h>
 
 WiFiCred wifiList[MAX_WIFI];
 uint8_t wifiCount = 0;
+
+#if defined(ESP32)
+Preferences prefs;
+#endif
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 7 * 3600; // WIB
@@ -36,111 +43,57 @@ void initNTP()
 
 void saveWiFiList()
 {
-    File file = LittleFS.open("/wifi.json", "w");
-    if (!file) {
-        Serial.println("Gagal buka file untuk write");
-        return;
-    }
-
-    String json = "{";
-    json += "\"count\":" + String(wifiCount) + ",";
-    json += "\"list\":[";
-
+   prefs.begin("wifi_store", false);
+    prefs.putUChar("count", wifiCount);
+    
     for (int i = 0; i < wifiCount; i++) {
-        json += "{";
-        json += "\"ssid\":\"" + wifiList[i].ssid + "\",";
-        json += "\"pass\":\"" + wifiList[i].pass + "\",";
-        json += "\"useStatic\":" +
-                String(wifiList[i].useStatic ? "true" : "false") + ",";
-        json += "\"ip\":\"" + wifiList[i].ip.toString() + "\",";
-        json += "\"gw\":\"" + wifiList[i].gw.toString() + "\",";
-        json += "\"sn\":\"" + wifiList[i].sn.toString() + "\"";
-        json += "}";
-
-        if (i < wifiCount - 1)
-            json += ",";
+        String idx = String(i);
+        prefs.putString(("s" + idx).c_str(), wifiList[i].ssid);
+        prefs.putString(("p" + idx).c_str(), wifiList[i].pass);
+        prefs.putBool(("st" + idx).c_str(), wifiList[i].useStatic);
+        prefs.putUInt(("ip" + idx).c_str(), (uint32_t)wifiList[i].ip);
+        prefs.putUInt(("gw" + idx).c_str(), (uint32_t)wifiList[i].gw);
+        prefs.putUInt(("sn" + idx).c_str(), (uint32_t)wifiList[i].sn);
     }
-
-    json += "]}";
-
-    file.print(json);
-    file.close();
-
-    Serial.println("WiFi list saved to LittleFS");
+    prefs.end();
+    Serial.println("WiFi list saved to Preferences");
 }
 
 void loadWiFiList()
 {
-    if (!LittleFS.exists("/wifi.json")) {
-        Serial.println("wifi.json tidak ada");
-        return;
-    }
-
-    File file = LittleFS.open("/wifi.json", "r");
-    if (!file) {
-        Serial.println("Gagal buka wifi.json");
-        return;
-    }
-
-    StaticJsonDocument<2048> doc;
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-
-    if (error) {
-        Serial.println("JSON parse error");
-        return;
-    }
-
-    wifiCount = doc["count"];
-    if (wifiCount > MAX_WIFI)
-        wifiCount = MAX_WIFI;
+   prefs.begin("wifi_store", true); // Read-only mode
+    wifiCount = prefs.getUChar("count", 0);
+    
+    if (wifiCount > MAX_WIFI) wifiCount = MAX_WIFI;
 
     for (int i = 0; i < wifiCount; i++) {
-        wifiList[i].ssid = doc["list"][i]["ssid"].as<String>();
-        wifiList[i].pass = doc["list"][i]["pass"].as<String>();
-        wifiList[i].useStatic = doc["list"][i]["useStatic"];
-
-        wifiList[i].ip.fromString(doc["list"][i]["ip"].as<String>());
-        wifiList[i].gw.fromString(doc["list"][i]["gw"].as<String>());
-        wifiList[i].sn.fromString(doc["list"][i]["sn"].as<String>());
+        String idx = String(i);
+        wifiList[i].ssid = prefs.getString(("s" + idx).c_str(), "");
+        wifiList[i].pass = prefs.getString(("p" + idx).c_str(), "");
+        wifiList[i].useStatic = prefs.getBool(("st" + idx).c_str(), false);
+        wifiList[i].ip = IPAddress(prefs.getUInt(("ip" + idx).c_str(), 0));
+        wifiList[i].gw = IPAddress(prefs.getUInt(("gw" + idx).c_str(), 0));
+        wifiList[i].sn = IPAddress(prefs.getUInt(("sn" + idx).c_str(), 0));
     }
-
-    Serial.println("WiFi list loaded from LittleFS");
+    prefs.end();
+    Serial.println("WiFi list loaded from Preferences");
 }
 
 int scanWiFi(String found[], int max)
 {
     Serial.println("Scan WiFi...");
-
     int n = WiFi.scanNetworks();
+    if (n <= 0) return 0;
+
     int count = 0;
-
-    if (n <= 0) {
-        Serial.println("Tidak ada WiFi ditemukan");
-        return 0;
-    }
-
-    Serial.print("Ditemukan ");
-    Serial.print(n);
-    Serial.println(" jaringan");
-
     for (int i = 0; i < n && count < max; i++) {
-        String ssid = WiFi.SSID(i);
-
-        found[count++] = ssid;
-
-        Serial.print(count);
-        Serial.print(". ");
-        Serial.print(ssid);
-        Serial.print(" | RSSI: ");
-        Serial.print(WiFi.RSSI(i));
-        Serial.print(" dBm");
-        Serial.print(" | Enkripsi: ");
-        Serial.println(WiFi.encryptionType(i) == ENC_TYPE_NONE ? "OPEN"
-                                                               : "SECURE");
+        found[count++] = WiFi.SSID(i);
+        
+            bool open = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
+        
+        
+        Serial.printf("%d. %s | RSSI: %d dBm | %s\n", count, WiFi.SSID(i).c_str(), WiFi.RSSI(i), open ? "OPEN" : "SECURE");
     }
-
-    Serial.println("Scan selesai");
     return count;
 }
 
@@ -243,19 +196,14 @@ bool deleteWiFi(String ssid)
 void startAP()
 {
     Serial.println("Starting AP mode");
-
     WiFi.mode(WIFI_AP);
     WiFi.softAP("ESP32-Config");
 
-    Serial.println("AP started");
-    Serial.println("AP IP: " + WiFi.softAPIP().toString());
+    Serial.println("AP started. IP: " + WiFi.softAPIP().toString());
 
-    // Inisialisasi mDNS
-    if (MDNS.begin("esp")) { // Akan bisa diakses via http://esp.local
-        Serial.println("mDNS responder started: http://esp.local");
+    if (MDNS.begin("esp")) {
+        Serial.println("mDNS: http://esp.local");
+        MDNS.addService("http", "tcp", 80);
     }
-
-    // Tambahkan service HTTP agar mDNS lebih mudah ditemukan oleh browser
-    MDNS.addService("http", "tcp", 80);
     showCenterImage("/qr-wifi.jpg");
 }

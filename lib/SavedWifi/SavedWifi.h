@@ -3,13 +3,14 @@
 
 #define MAX_WIFI 5
 
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
+#include <Preferences.h>
+
 
 struct WiFiCred {
     String ssid;
     String pass;
     bool useStatic;
-
     IPAddress ip;
     IPAddress gw;
     IPAddress sn;

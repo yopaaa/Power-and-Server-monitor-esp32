@@ -6,7 +6,7 @@
 #include "index_html.h"
 #include <ElegantOTA.h>
 
-ESP8266WebServer server(80);
+WebServer server(80);
 
 void onOTAStart() { Serial.println("OTA started"); }
 

@@ -1,8 +1,8 @@
 #ifndef WIFI_API_H
 #define WIFI_API_H
 
-#include <ESP8266WebServer.h>
+#include "Web.h"
 
-void setupWifiApi(ESP8266WebServer &server);
+void setupWifiApi(WebServerClass &server);
 
 #endif

@@ -4,7 +4,7 @@
 
 bool otaEnabled = false;
 
-void setupWifiApi(ESP8266WebServer &server)
+void setupWifiApi(WebServer &server)
 {
     server.on("/welcome", HTTP_GET, [&server]() {
         String html = String(INDEX_HTML);

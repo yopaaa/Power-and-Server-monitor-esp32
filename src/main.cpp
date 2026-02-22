@@ -1,6 +1,6 @@
 #include "SavedWifi.h"
 #include "Web.h"
-#include <ESP8266mDNS.h>
+#include <ESP32mDNS.h>
 #include <ElegantOTA.h>
 
 #include "FsManager.h"
@@ -8,6 +8,7 @@
 #include "Lcd_api.h"
 
 #include "Analog_clock.h"
+
 void setup()
 {
     Serial.begin(9600);
@@ -36,11 +37,6 @@ void setup()
 
 void loop()
 {
-#if defined(ESP8266)
-    if (WiFi.status() != WL_CONNECTED) {
-        MDNS.update();
-    }
-#endif
     server.handleClient();
     // ElegantOTA.loop();
     lcdApiLoop();
@@ -50,5 +46,3 @@ void loop()
 
     updateClock();
 }
-
-
