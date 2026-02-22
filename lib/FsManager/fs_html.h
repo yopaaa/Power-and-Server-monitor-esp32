@@ -1,4 +1,4 @@
-const char INDEX_HTML[] = R"rawliteral(
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="id">
 <head>
