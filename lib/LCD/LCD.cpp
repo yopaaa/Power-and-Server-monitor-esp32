@@ -1,6 +1,6 @@
 #include "LCD.h"
-#include <TJpg_Decoder.h>
 #include <LittleFS.h>
+#include <TJpg_Decoder.h>
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -19,6 +19,7 @@ void lcdInit()
 {
     TJpgDec.setCallback(tft_output);
     TJpgDec.setSwapBytes(true);
+    TJpgDec.setJpgScale(1);
 
     pinMode(LCD_BL_PIN, OUTPUT);
     lcdBacklight(false);
@@ -29,6 +30,7 @@ void lcdInit()
 
     lcdBacklight(true);
     showCenterImage("/linux.jpg");
+    startGif(20);
 }
 
 void lcdClear(uint16_t color) { tft.fillScreen(color); }
@@ -37,6 +39,28 @@ void lcdPrint(String text, int x, int y, uint16_t color, uint8_t size)
 {
     tft.setTextColor(color);
     tft.setTextSize(size);
+    tft.setCursor(x, y);
+    tft.print(text);
+}
+
+void lcdPrintCenterX(String text, int line, uint16_t color, uint8_t size)
+{
+    // 1. Tentukan tinggi baris (Font size 2 = 16px + 4px padding = 20px)
+    int lineHeight = (size * 8) + 4; 
+    
+    // 2. Hitung koordinat Y berdasarkan nomor baris
+    // Baris 0 akan ada di y=2, Baris 1 di y=22, dst.
+    int y = (line * lineHeight) + 2;
+
+    // 3. Hitung koordinat X agar teks di tengah
+    tft.setTextSize(size);
+    int textWidth = tft.textWidth(text);
+    int x = (tft.width() - textWidth) / 2;
+    
+    if (x < 0) x = 0; // Cegah teks keluar layar kiri
+
+    // 4. Gambar teks
+    tft.setTextColor(color);
     tft.setCursor(x, y);
     tft.print(text);
 }
@@ -51,5 +75,8 @@ void showCenterImage(const char *Filename)
     int x = (tft.width() - w) / 2;
     int y = (tft.height() - h) / 2;
 
-    TJpgDec.drawFsJpg(x, y, Filename, LittleFS);
+    JRESULT res = TJpgDec.drawFsJpg(x, y, Filename, LittleFS);
+
+    return;
 }
+

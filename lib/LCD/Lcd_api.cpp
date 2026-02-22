@@ -60,9 +60,8 @@ void setupLcdApi(WebServer &server)
             return;
         }
 
-        lcdClear();
-        // TJpgDec.drawFsJpg(0, 0, filename);
-        TJpgDec.drawFsJpg(0, 0, filename.c_str(), LittleFS);
+        // lcdClear();
+        showCenterImage(filename.c_str());
 
         server.send(200, "application/json", "{\"status\":\"displayed\"}");
     });

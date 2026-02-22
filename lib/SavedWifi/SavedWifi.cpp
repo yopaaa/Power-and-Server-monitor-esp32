@@ -25,6 +25,7 @@ void initNTP()
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     Serial.println("Waiting NTP...");
+    lcdPrintCenterX("Waiting NTP...", 2, TFT_BLUE, 2);
 
     unsigned long start = millis();
     time_t now = time(nullptr);
@@ -120,6 +121,9 @@ bool connectSavedWiFi()
                     if (WiFi.status() == WL_CONNECTED) {
                         Serial.println("--------------------------");
                         Serial.println("Connected to: " + wifiList[i].ssid);
+                        lcdPrintCenterX("Connected to:", 0, TFT_BLUE, 2);
+                        lcdPrintCenterX(wifiList[i].ssid, 1, TFT_BLUE, 2);
+                        Serial.print("RSSI       : ");
                         Serial.print("Current IP  : ");
                         Serial.println(
                             WiFi.localIP()); // Menampilkan IP Address
