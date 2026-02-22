@@ -48,5 +48,6 @@ void loop()
         ElegantOTA.loop();
     }
 
-    updateClock();
+    // updateClock();
+        gifLoop();
 }
