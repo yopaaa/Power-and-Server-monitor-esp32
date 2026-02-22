@@ -1,5 +1,5 @@
-#include "LCD.h"
 #include "Lcd_api.h"
+#include "LCD.h"
 #include <LittleFS.h>
 #include <TJpg_Decoder.h>
 
@@ -16,19 +16,31 @@ static int slideCount = 0;
 void loadSlideFiles()
 {
     slideCount = 0;
-    Dir dir = LittleFS.openDir("/");
+    // DIUBAH: ESP32 menggunakan open() pada "/" untuk iterasi file
+    File root = LittleFS.open("/");
+    if (!root || !root.isDirectory()) {
+        Serial.println("Gagal buka direktori root");
+        return;
+    }
 
-    while (dir.next() && slideCount < 20) {
-        String name = dir.fileName();
-        if (name.endsWith(".jpg")) {
+    File file = root.openNextFile();
+    while (file && slideCount < 20) {
+        String name = String(file.name());
+        // Di ESP32 file.name() terkadang sudah termasuk "/" di depan
+        if (name.endsWith(".jpg") || name.endsWith(".JPG")) {
+            // Pastikan path diawali "/" untuk TJpgDec
+            if (!name.startsWith("/"))
+                name = "/" + name;
             slideFiles[slideCount++] = name;
         }
+        file = root.openNextFile();
     }
 
     slideIndex = 0;
+    Serial.printf("Slideshow: %d file ditemukan\n", slideCount);
 }
 
-void setupLcdApi(ESP8266WebServer &server)
+void setupLcdApi(WebServer &server)
 {
     // ===== SHOW IMAGE =====
     server.on("/lcd/show", HTTP_GET, [&server]() {
@@ -108,7 +120,7 @@ void setupLcdApi(ESP8266WebServer &server)
 
 void lcdApiLoop()
 {
-    if (!slideshowActive)
+    if (!slideshowActive || slideCount == 0)
         return;
 
     if (millis() - lastSlide < slideDelay)
@@ -116,11 +128,8 @@ void lcdApiLoop()
 
     lastSlide = millis();
 
-    if (slideCount == 0)
-        return;
-
     lcdClear();
-    // TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex]);
+    // Gunakan .c_str() agar kompatibel dengan parameter const char*
     TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex].c_str(), LittleFS);
 
     slideIndex++;

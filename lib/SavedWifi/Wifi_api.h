@@ -3,6 +3,6 @@
 
 #include "Web.h"
 
-void setupWifiApi(WebServerClass &server);
+void setupWifiApi(WebServer &server);
 
 #endif

@@ -2,7 +2,8 @@
 
 bool fsInit()
 {
-    if (!LittleFS.begin()) {
+    // Jika mount gagal, ESP32 akan memformat partisi agar bisa digunakan.
+    if (!LittleFS.begin(true)) {
         Serial.println("LittleFS mount gagal");
         return false;
     }
@@ -12,15 +13,25 @@ bool fsInit()
 
 String fsListJson()
 {
-    StaticJsonDocument<2048> doc;
-    JsonArray arr = doc.createNestedArray("files");
+    JsonDocument doc; 
+    JsonArray arr = doc["files"].to<JsonArray>();
 
-    Dir dir = LittleFS.openDir("/");
-    while (dir.next())
+    File root = LittleFS.open("/");
+    if (!root || !root.isDirectory()) {
+        return "{\"files\":[]}";
+    }
+
+    File file = root.openNextFile();
+    while (file)
     {
-        JsonObject f = arr.createNestedObject();
-        f["name"] = dir.fileName();
-        f["size"] = dir.fileSize();
+        JsonObject f = arr.add<JsonObject>();
+        String name = String(file.name());
+        if (name.startsWith("/")) name = name.substring(1); 
+        
+        f["name"] = name;
+        f["size"] = file.size();
+        
+        file = root.openNextFile();
     }
 
     String output;
@@ -30,8 +41,13 @@ String fsListJson()
 
 bool fsDelete(const String &path)
 {
-    if (!LittleFS.exists(path)) {
+    String fullPath = path;
+    if (!fullPath.startsWith("/")) {
+        fullPath = "/" + fullPath;
+    }
+
+    if (!LittleFS.exists(fullPath)) {
         return false;
     }
-    return LittleFS.remove(path);
+    return LittleFS.remove(fullPath);
 }

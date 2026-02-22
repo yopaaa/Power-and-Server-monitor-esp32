@@ -2,14 +2,15 @@
 #include "FsManager.h"
 #include "fs_html.h"
 
-void handleUpload(ESP8266WebServer &server)
+void handleUpload(WebServer &server)
 {
     HTTPUpload& upload = server.upload();
-
     static File uploadFile;
 
     if (upload.status == UPLOAD_FILE_START) {
-        String filename = "/" + upload.filename;
+        String filename = upload.filename;
+        if (!filename.startsWith("/")) filename = "/" + filename;
+        
         uploadFile = LittleFS.open(filename, "w");
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
@@ -22,7 +23,7 @@ void handleUpload(ESP8266WebServer &server)
     }
 }
 
-void setupFsApi(ESP8266WebServer &server)
+void setupFsApi(WebServer &server)
 {
     server.on("/fs", HTTP_GET, [&server]() {
         String html = String(INDEX_HTML);
@@ -35,19 +36,16 @@ void setupFsApi(ESP8266WebServer &server)
     });
 
     server.on("/fs/info", HTTP_GET, [&server]() {
-
-        FSInfo fs_info;
-        LittleFS.info(fs_info);
-
-        size_t total = fs_info.totalBytes;
-        size_t used  = fs_info.usedBytes;
+        size_t total = LittleFS.totalBytes();
+        size_t used  = LittleFS.usedBytes();
         size_t free  = total - used;
 
         String json = "{";
         json += "\"total\":" + String(total) + ",";
         json += "\"used\":"  + String(used)  + ",";
         json += "\"free\":"  + String(free)  + ",";
-        json += "\"usedPercent\":" + String((used * 100) / total);
+        // Proteksi division by zero jika FS belum mount
+        json += "\"usedPercent\":" + String(total > 0 ? (used * 100) / total : 0);
         json += "}";
 
         server.send(200, "application/json", json);

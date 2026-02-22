@@ -1,9 +1,10 @@
 #include "LCD.h"
 #include <TJpg_Decoder.h>
+#include <LittleFS.h>
 
 TFT_eSPI tft = TFT_eSPI();
 
-#define LCD_BL_PIN 16
+#define LCD_BL_PIN 5
 
 void lcdBacklight(bool on) { digitalWrite(LCD_BL_PIN, on ? HIGH : LOW); }
 

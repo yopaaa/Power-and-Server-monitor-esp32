@@ -1,6 +1,6 @@
 #include "SavedWifi.h"
 #include "Web.h"
-#include <ESP32mDNS.h>
+#include <ESPmDNS.h>
 #include <ElegantOTA.h>
 
 #include "FsManager.h"
@@ -8,6 +8,10 @@
 #include "Lcd_api.h"
 
 #include "Analog_clock.h"
+
+#ifndef LED_BUILTIN
+  #define LED_BUILTIN 2  // GPIO 2 adalah standar LED pada kebanyakan ESP32
+#endif
 
 void setup()
 {

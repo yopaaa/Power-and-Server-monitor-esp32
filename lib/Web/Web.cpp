@@ -4,6 +4,7 @@
 #include "Lcd_api.h"
 #include "Wifi_api.h"
 #include "index_html.h"
+#include "FsManager.h"
 #include <ElegantOTA.h>
 
 WebServer server(80);
@@ -51,42 +52,32 @@ void setupWeb()
     });
 
     server.on("/sys/info", HTTP_GET, []() {
-        FSInfo fsInfo;
-        LittleFS.info(fsInfo);
-
         String json = "{";
 
-        // ===== CHIP INFO =====
-        json += "\"chipId\":\"" + String(ESP.getChipId()) + "\",";
-        json += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz()) + ",";
-        json += "\"sdkVersion\":\"" + String(ESP.getSdkVersion()) + "\",";
-        json += "\"flashSize\":" + String(ESP.getFlashChipRealSize()) + ",";
-        json += "\"flashSpeed\":" + String(ESP.getFlashChipSpeed()) + ",";
-
-        // ===== MEMORY =====
+        uint64_t chipid = ESP.getEfuseMac();
+        json += "\"chipId\":\"" + String((uint32_t)(chipid >> 32), HEX) +
+                String((uint32_t)chipid, HEX) + "\",";
+        json += "\"flashSize\":" + String(ESP.getFlashChipSize()) + ",";
         json += "\"freeHeap\":" + String(ESP.getFreeHeap()) + ",";
-        json += "\"maxFreeBlock\":" + String(ESP.getMaxFreeBlockSize()) + ",";
-        json +=
-            "\"heapFragmentation\":" + String(ESP.getHeapFragmentation()) + ",";
+        json += "\"fsTotal\":" + String(LittleFS.totalBytes()) + ",";
+        json += "\"fsUsed\":" + String(LittleFS.usedBytes()) + ",";
+        json += "\"fsFree\":" +
+                String(LittleFS.totalBytes() - LittleFS.usedBytes()) + ",";
 
-        // ===== UPTIME =====
+        json += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz()) + ",";
         json += "\"uptimeMs\":" + String(millis()) + ",";
-
-        // ===== WIFI =====
-        json += "\"wifiMode\":" + String(WiFi.getMode()) + ",";
-        json += "\"wifiStatus\":" + String(WiFi.status()) + ",";
         json += "\"localIP\":\"" + WiFi.localIP().toString() + "\",";
-        json += "\"gateway\":\"" + WiFi.gatewayIP().toString() + "\",";
         json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
+        json += "\"wifiMode\":" + String(WiFi.getMode()) + ",";
 
-        // ===== FILESYSTEM =====
-        json += "\"fsTotal\":" + String(fsInfo.totalBytes) + ",";
-        json += "\"fsUsed\":" + String(fsInfo.usedBytes) + ",";
-        json += "\"otaEnabled\":" + String(otaEnabled ? 1 : 0) + ",";
-        json += "\"fsFree\":" + String(fsInfo.totalBytes - fsInfo.usedBytes);
+        json += "\"wifiStatus\":" + String(WiFi.status()) + ",";
+
+        json += "\"localIP\":\"" + WiFi.localIP().toString() + "\",";
+
+        json += "\"gateway\":\"" + WiFi.gatewayIP().toString() + "\",";
+        json += "\"otaEnabled\":" + String(otaEnabled ? 1 : 0);
 
         json += "}";
-
         server.send(200, "application/json", json);
     });
 
