@@ -4,17 +4,12 @@
 #include <ArduinoJson.h>
 
 #include <ESPmDNS.h>
-
-
-// #include <LittleFS.h>
 #include <time.h>
 
 WiFiCred wifiList[MAX_WIFI];
 uint8_t wifiCount = 0;
 
-#if defined(ESP32)
 Preferences prefs;
-#endif
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 7 * 3600; // WIB

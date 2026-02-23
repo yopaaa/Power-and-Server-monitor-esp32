@@ -7,10 +7,10 @@
 #include "LCD.h"
 #include "Lcd_api.h"
 
-#include "Analog_clock.h"
+#include "Services.h"
 
 #ifndef LED_BUILTIN
-  #define LED_BUILTIN 2  // GPIO 2 adalah standar LED pada kebanyakan ESP32
+#define LED_BUILTIN 2 
 #endif
 
 void setup()
@@ -22,7 +22,6 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
-    // loadConfig();
     loadWiFiList();
 
     WiFi.mode(WIFI_STA);
@@ -33,21 +32,17 @@ void setup()
 
     setupWeb();
 
-    // lcdClear();
     lcdPrint("HTTP server started", 10, 40, TFT_RED, 2);
 
-    drawDial();
+    loadService();
 }
 
 void loop()
 {
     server.handleClient();
-    // ElegantOTA.loop();
-    lcdApiLoop();
     if (otaEnabled) {
         ElegantOTA.loop();
     }
 
-    // updateClock();
-        gifLoop();
+    servicesLoop();
 }

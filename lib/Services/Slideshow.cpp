@@ -6,7 +6,7 @@
 #include <TJpg_Decoder.h>
 
 // ===== Slideshow State =====
-static bool slideshowActive = false;
+ bool slideshowActive = false;
  unsigned long slideDelay = 3000;
 static unsigned long lastSlide = 0;
 static int slideIndex = 0;

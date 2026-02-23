@@ -19,6 +19,7 @@ struct WiFiCred {
 extern WiFiCred wifiList[MAX_WIFI];
 extern uint8_t wifiCount;
 extern bool otaEnabled;
+extern Preferences prefs;
 
 void loadWiFiList();
 void saveWiFiList();
