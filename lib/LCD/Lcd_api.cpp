@@ -1,44 +1,9 @@
 #include "Lcd_api.h"
 #include "LCD.h"
+#include "Services.h"
+#include "Slideshow.h"
 #include <LittleFS.h>
 #include <TJpg_Decoder.h>
-
-extern TFT_eSPI tft;
-
-// ===== Slideshow State =====
-static bool slideshowActive = false;
-static unsigned long slideDelay = 3000;
-static unsigned long lastSlide = 0;
-static int slideIndex = 0;
-static String slideFiles[20];
-static int slideCount = 0;
-
-void loadSlideFiles()
-{
-    slideCount = 0;
-    // DIUBAH: ESP32 menggunakan open() pada "/" untuk iterasi file
-    File root = LittleFS.open("/");
-    if (!root || !root.isDirectory()) {
-        Serial.println("Gagal buka direktori root");
-        return;
-    }
-
-    File file = root.openNextFile();
-    while (file && slideCount < 20) {
-        String name = String(file.name());
-        // Di ESP32 file.name() terkadang sudah termasuk "/" di depan
-        if (name.endsWith(".jpg") || name.endsWith(".JPG")) {
-            // Pastikan path diawali "/" untuk TJpgDec
-            if (!name.startsWith("/"))
-                name = "/" + name;
-            slideFiles[slideCount++] = name;
-        }
-        file = root.openNextFile();
-    }
-
-    slideIndex = 0;
-    Serial.printf("Slideshow: %d file ditemukan\n", slideCount);
-}
 
 void setupLcdApi(WebServer &server)
 {
@@ -98,40 +63,54 @@ void setupLcdApi(WebServer &server)
 
     // ===== SLIDESHOW =====
     server.on("/lcd/slideshow", HTTP_GET, [&server]() {
-        slideDelay =
-            server.hasArg("delay") ? server.arg("delay").toInt() : 3000;
+        String folder =
+            server.hasArg("folder") ? server.arg("folder") : currentSlideFolder;
 
-        loadSlideFiles();
+        unsigned long delay =
+            server.hasArg("delay") ? server.arg("delay").toInt() : slideDelay;
+
+        setSlideshow(folder, delay);
 
         if (slideCount == 0) {
-            server.send(404, "application/json",
-                        "{\"error\":\"no jpg files\"}");
+            server.send(
+                404, "application/json",
+                "{\"status\":\"error\", \"message\":\"No JPG files found in " +
+                    folder + "\"}");
             return;
         }
 
-        slideshowActive = true;
-        lastSlide = 0;
+        // startSlideshow();
 
-        server.send(200, "application/json",
-                    "{\"status\":\"slideshow started\"}");
+        // 6. Kirim respon sukses beserta info jumlah file
+        String response = "{\"status\":\"slideshow started\", \"folder\":\"" +
+                          folder + "\", \"count\":" + String(slideCount) + "}";
+        server.send(200, "application/json", response);
     });
-}
 
-void lcdApiLoop()
-{
-    if (!slideshowActive || slideCount == 0)
-        return;
+    // ===== SELECT SERVICE =====
+    server.on("/service/select", HTTP_GET, [&server]() {
+        if (!server.hasArg("id")) {
+            server.send(
+                400, "application/json",
+                "{\"error\":\"id required (1:Clock, 2:GIF, 3:Slideshow)\"}");
+            return;
+        }
 
-    if (millis() - lastSlide < slideDelay)
-        return;
+        int id = server.arg("id").toInt();
 
-    lastSlide = millis();
+        selectService(id);
 
-    lcdClear();
-    // Gunakan .c_str() agar kompatibel dengan parameter const char*
-    TJpgDec.drawFsJpg(0, 0, slideFiles[slideIndex].c_str(), LittleFS);
+        String serviceName = "Unknown";
+        if (id == 1)
+            serviceName = "Analog Clock";
+        else if (id == 2)
+            serviceName = "GIF Animation";
+        else if (id == 3)
+            serviceName = "Slideshow";
 
-    slideIndex++;
-    if (slideIndex >= slideCount)
-        slideIndex = 0;
+        String response =
+            "{\"status\":\"service changed\", \"id\":" + String(id) +
+            ", \"name\":\"" + serviceName + "\"}";
+        server.send(200, "application/json", response);
+    });
 }

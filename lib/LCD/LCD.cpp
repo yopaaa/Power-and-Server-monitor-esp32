@@ -30,7 +30,7 @@ void lcdInit()
 
     lcdBacklight(true);
     showCenterImage("/linux.jpg");
-    startGif(20);
+    // startGif(20);
 }
 
 void lcdClear(uint16_t color) { tft.fillScreen(color); }

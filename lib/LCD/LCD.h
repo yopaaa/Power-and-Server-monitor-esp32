@@ -9,7 +9,6 @@ void lcdPrint(String text, int x = 10, int y = 40, uint16_t color = TFT_RED, uin
 void lcdBacklight(bool on);
 void showCenterImage(const char *Filename);
 void gifLoop();
-void startGif(int fps);
 void lcdPrintCenterX(String text, int line, uint16_t color = TFT_BLACK, uint8_t size = 2);
 extern TFT_eSPI tft;
 
