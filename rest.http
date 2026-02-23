@@ -1,0 +1,104 @@
+@host = 192.168.2.50
+
+# REST API Endpoints for LCD Project
+# Replace {{host}} with your ESP32 IP address, e.g., 192.168.2.50
+
+### System Info
+GET http://{{host}}/sys/info
+
+###
+
+### Enable OTA
+GET http://{{host}}/ota
+
+###
+
+### Root Page
+GET http://{{host}}/
+
+###
+
+### File System - List Files
+GET http://{{host}}/fs/list?path=/
+
+###
+
+### File System - Info
+GET http://{{host}}/fs/info
+
+###
+
+### File System - Delete File
+POST http://{{host}}/fs/delete
+Content-Type: application/x-www-form-urlencoded
+
+path=/example.txt
+
+###
+
+### File System - Create Directory
+POST http://{{host}}/fs/mkdir
+Content-Type: application/x-www-form-urlencoded
+
+path=/newfolder
+
+###
+
+### File System - Upload File (use multipart/form-data in client)
+POST http://{{host}}/fs/upload
+
+###
+
+### WiFi - Get Saved WiFi Data
+GET http://{{host}}/wifi/data
+
+###
+
+### WiFi - Add WiFi
+POST http://{{host}}/wifi/add
+Content-Type: application/x-www-form-urlencoded
+
+ssid=MyWiFi&pass=mypassword&static=false
+
+###
+
+### WiFi - Delete WiFi
+POST http://{{host}}/wifi/delete
+Content-Type: application/x-www-form-urlencoded
+
+ssid=MyWiFi
+
+###
+
+### WiFi - Test WiFi Connection
+POST http://{{host}}/wifi/test
+Content-Type: application/x-www-form-urlencoded
+
+ssid=MyWiFi&pass=mypassword
+
+###
+
+### LCD - Show Image
+GET http://{{host}}/lcd/show?img=image.jpg
+
+###
+
+### LCD - Clear Display
+GET http://{{host}}/lcd/clear
+
+###
+
+### LCD - Display Text
+GET http://{{host}}/lcd/text?msg=Hello%20World&x=10&y=40&size=2
+
+###
+
+### LCD - Start Slideshow
+GET http://{{host}}/lcd/slideshow?folder=/images&delay=5000
+
+###
+
+### Service - Select Service
+GET http://{{host}}/service/select?id=1
+
+###
