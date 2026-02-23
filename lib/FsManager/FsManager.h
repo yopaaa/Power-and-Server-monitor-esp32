@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 bool fsInit();
-String fsListJson();
+String fsListJson(const String &path);
 bool fsDelete(const String &path);
 
 #endif

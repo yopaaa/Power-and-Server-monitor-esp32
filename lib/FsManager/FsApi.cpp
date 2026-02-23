@@ -9,17 +9,24 @@ void handleUpload(WebServer &server)
 
     if (upload.status == UPLOAD_FILE_START) {
         String filename = upload.filename;
+        // Pastikan filename dimulai dengan /
         if (!filename.startsWith("/")) filename = "/" + filename;
         
+        Serial.print("Uploading: "); Serial.println(filename);
+        
+        // Membuka file untuk ditulis (ini akan menimpa file lama jika namanya sama)
         uploadFile = LittleFS.open(filename, "w");
     }
     else if (upload.status == UPLOAD_FILE_WRITE) {
-        if (uploadFile)
+        if (uploadFile) {
             uploadFile.write(upload.buf, upload.currentSize);
+        }
     }
     else if (upload.status == UPLOAD_FILE_END) {
-        if (uploadFile)
+        if (uploadFile) {
             uploadFile.close();
+            Serial.println("Upload Finished");
+        }
     }
 }
 
@@ -32,7 +39,13 @@ void setupFsApi(WebServer &server)
 
     // LIST FILES
     server.on("/fs/list", HTTP_GET, [&server]() {
-        server.send(200, "application/json", fsListJson());
+        if (!server.hasArg("path")) {
+            server.send(400, "application/json", "{\"error\":\"path required\"}");
+            return;
+        }
+
+        String path = server.arg("path");
+        server.send(200, "application/json", fsListJson(path));
     });
 
     server.on("/fs/info", HTTP_GET, [&server]() {
@@ -78,4 +91,19 @@ void setupFsApi(WebServer &server)
             handleUpload(server);
         }
     );
+
+    server.on("/fs/mkdir", HTTP_POST, [&server]() {
+        if (!server.hasArg("path")) {
+            server.send(400, "application/json", "{\"error\":\"path required\"}");
+            return;
+        }
+        String path = server.arg("path");
+        if (!path.startsWith("/")) path = "/" + path;
+
+        if (LittleFS.mkdir(path)) {
+            server.send(200, "application/json", "{\"status\":\"folder created\"}");
+        } else {
+            server.send(500, "application/json", "{\"error\":\"failed to create folder\"}");
+        }
+    });
 }

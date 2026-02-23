@@ -11,25 +11,39 @@ bool fsInit()
     return true;
 }
 
-String fsListJson()
+String fsListJson(const String &path = "/")
 {
     JsonDocument doc; 
-    JsonArray arr = doc["files"].to<JsonArray>();
+    JsonArray arr = doc.to<JsonArray>(); 
 
-    File root = LittleFS.open("/");
+    File root = LittleFS.open(path);
     if (!root || !root.isDirectory()) {
-        return "{\"files\":[]}";
+        return "[]"; 
     }
 
     File file = root.openNextFile();
     while (file)
     {
         JsonObject f = arr.add<JsonObject>();
-        String name = String(file.name());
-        if (name.startsWith("/")) name = name.substring(1); 
         
-        f["name"] = name;
+        // Mengambil nama file saja (tanpa path lengkap jika di dalam subfolder)
+        String fileName = String(file.name());
+        
+        // Membersihkan karakter '/' di awal jika ada
+        if (fileName.startsWith("/")) {
+            fileName = fileName.substring(1);
+        }
+        
+        // Jika berada di dalam subfolder, file.name() terkadang mengembalikan path lengkap.
+        // Kita hanya butuh nama akhirnya saja untuk tampilan tabel.
+        int lastIndex = fileName.lastIndexOf('/');
+        if (lastIndex != -1) {
+            fileName = fileName.substring(lastIndex + 1);
+        }
+
+        f["name"] = fileName;
         f["size"] = file.size();
+        f["isDir"] = file.isDirectory(); // Menambahkan status Folder/Direktori
         
         file = root.openNextFile();
     }
