@@ -1,6 +1,8 @@
 #include "Devices.h"
 #include "SavedWifi.h"
 
+String _id;
+
 String generateRandomID(int length)
 {
     const char charset[] =

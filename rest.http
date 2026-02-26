@@ -1,4 +1,4 @@
-@host = 192.168.2.50
+@host = 192.168.2.182
 
 # REST API Endpoints for LCD Project
 # Replace {{host}} with your ESP32 IP address, e.g., 192.168.2.50
@@ -81,6 +81,10 @@ ssid=MyWiFi&pass=mypassword
 ### LCD - Show Image
 GET http://{{host}}/lcd/show?img=image.jpg
 
+
+### LCD - Set Backlight
+GET http://{{host}}/lcd/backlight?value=1
+
 ###
 
 ### LCD - Clear Display
@@ -101,4 +105,7 @@ GET http://{{host}}/lcd/slideshow?folder=/images&delay=5000
 ### Service - Select Service
 GET http://{{host}}/service/select?id=1
 
+
+### Service - Select Service
+GET http://{{host}}/sleep/light
 ###

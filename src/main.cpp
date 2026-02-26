@@ -21,6 +21,8 @@ void setup()
     lcdInit();
     initDeviceID();
 
+    pinMode(33, INPUT);
+
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 

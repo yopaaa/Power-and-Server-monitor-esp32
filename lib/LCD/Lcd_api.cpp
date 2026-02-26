@@ -5,6 +5,17 @@
 #include <LittleFS.h>
 #include <TJpg_Decoder.h>
 
+void enterLightSleep()
+{
+    lcdBacklight(false);
+    delay(50);
+
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
+    esp_light_sleep_start();
+
+    lcdBacklight(true);
+}
+
 void setupLcdApi(WebServer &server)
 {
     // ===== SHOW IMAGE =====
@@ -85,6 +96,35 @@ void setupLcdApi(WebServer &server)
         String response = "{\"status\":\"slideshow started\", \"folder\":\"" +
                           folder + "\", \"count\":" + String(slideCount) + "}";
         server.send(200, "application/json", response);
+    });
+
+    // ===== BACKLIGHT =====
+    server.on("/lcd/backlight", HTTP_GET, [&server]() {
+        if (!server.hasArg("value")) {
+            server.send(400, "application/json",
+                        "{\"error\":\"value required (0-255)\"}");
+            return;
+        }
+
+        int value = server.arg("value").toInt();
+
+        if (value == 0) {
+            lcdBacklight(false);
+        } else {
+            lcdBacklight(true);
+        }
+
+        String response =
+            "{\"status\":\"backlight set\", \"value\":" + String(value) + "}";
+
+        server.send(200, "application/json", response);
+    });
+
+    // ===== LIGHT SLEEP (Wake by TTP223 GPIO 33 HIGH) =====
+    server.on("/sleep/light", HTTP_GET, [&server]() {
+        server.send(200, "application/json",
+                    "{\"status\":\"entering light sleep\"}");
+        enterLightSleep();
     });
 
     // ===== SELECT SERVICE =====

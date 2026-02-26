@@ -4,9 +4,7 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-#define LCD_BL_PIN 5
-
-void lcdBacklight(bool on) { digitalWrite(LCD_BL_PIN, on ? HIGH : LOW); }
+void lcdBacklight(bool on) { digitalWrite(TFT_BL, on ? HIGH : LOW); }
 
 bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap)
 {
@@ -21,7 +19,7 @@ void lcdInit()
     TJpgDec.setSwapBytes(true);
     TJpgDec.setJpgScale(1);
 
-    pinMode(LCD_BL_PIN, OUTPUT);
+    pinMode(TFT_BL, OUTPUT);
     lcdBacklight(false);
 
     tft.init();
