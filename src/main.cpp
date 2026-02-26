@@ -8,6 +8,7 @@
 #include "Lcd_api.h"
 
 #include "Services.h"
+#include "Devices.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 
@@ -18,6 +19,7 @@ void setup()
     Serial.begin(9600);
     fsInit();
     lcdInit();
+    initDeviceID();
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -31,6 +33,7 @@ void setup()
     }
 
     setupWeb();
+    initUDPDiscovery();
 
     lcdPrint("HTTP server started", 10, 40, TFT_RED, 2);
 
@@ -45,4 +48,5 @@ void loop()
     }
 
     servicesLoop();
+    handleUDPDiscovery();
 }
