@@ -140,7 +140,12 @@ Layar TFT LCD memiliki lampu latar (*backlight*), sehingga warna abu-abu gelap a
   - Tambahkan CORS header (`Access-Control-Allow-Origin: *`) pada endpoint publik.
 - Endpoint aksi mutating (seperti reset energi atau ubah wifi) wajib menggunakan metode **POST**.
 
-### C. Web OTA (Over-The-Air Update)
+### C. Filosofi Web UI (Configuration-Only, No Aggressive Polling)
+- **Web UI murni berfungsi sebagai portal konfigurasi**: Pengaturan WiFi, konfigurasi Beszel Hub, manajemen server (tambah/hapus/tes), dan Web OTA.
+- **Tugas monitoring real-time dipegang penuh oleh layar LCD TFT**: Dilarang menambahkan polling periodik (`setInterval`) agresif di frontend web UI.
+- Pemuatan data di Web UI hanya dilakukan **sekali saat halaman dibuka** (*initial load*) atau secara **on-demand** saat pengguna menekan tombol aksi / tautan *"Segarkan"*. Hal ini menjaga socket TCP lwIP ESP32 tetap longgar dan responsif untuk proses input data.
+
+### D. Web OTA (Over-The-Air Update)
 - Gunakan implementasi native `<Update.h>` berbasis multipart POST di endpoint `/update`.
 - Jangan mengganti implementasi ini dengan library pihak ketiga yang membebani RAM (seperti ElegantOTA lama).
 - Proses OTA wajib menampilkan visual progres di LCD melalui:

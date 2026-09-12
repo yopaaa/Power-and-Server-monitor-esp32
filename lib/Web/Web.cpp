@@ -6,8 +6,10 @@
 #include "LCD.h"
 #include "PZEMManager.h"
 #include "ServerMonitor.h"
+#include "BeszelClient.h"
 #include <Update.h>
 #include <LittleFS.h>
+#include <ArduinoJson.h>
 
 WebServer server(80);
 
@@ -119,6 +121,8 @@ void setupWeb()
         json += "\"pf\":" + String(m.pf, 2);
         json += "},";
 
+        json += "\"autoCycle\":" + String(isAutoCycleEnabled() ? "true" : "false") + ",";
+        json += "\"autoCycleInterval\":" + String(getAutoCycleInterval() / 1000) + ",";
         json += "\"otaReady\":true";
         json += "}";
         server.send(200, "application/json", json);
@@ -131,6 +135,49 @@ void setupWeb()
 
     server.on("/ota", HTTP_GET, []() {
         server.send(200, "text/plain", "Web OTA active via POST /update or root page");
+    });
+
+    server.on("/lcd/autocycle", HTTP_GET, []() {
+        addCorsHeaders();
+        JsonDocument doc;
+        doc["enabled"] = isAutoCycleEnabled();
+        doc["interval"] = getAutoCycleInterval() / 1000;
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/lcd/autocycle", HTTP_POST, []() {
+        addCorsHeaders();
+        bool enable = false;
+        if (server.hasArg("enabled")) {
+            String val = server.arg("enabled");
+            enable = (val == "1" || val == "true" || val == "on");
+        } else {
+            enable = !isAutoCycleEnabled();
+        }
+
+        uint32_t intSec = 20;
+        if (server.hasArg("interval")) {
+            intSec = server.arg("interval").toInt();
+            if (intSec < 5) intSec = 5;
+        }
+
+        setAutoCycle(enable, intSec * 1000);
+
+        JsonDocument doc;
+        doc["status"] = "ok";
+        doc["enabled"] = isAutoCycleEnabled();
+        doc["interval"] = getAutoCycleInterval() / 1000;
+        doc["message"] = isAutoCycleEnabled() ? "Rotasi otomatis aktif (tiap 20 detik)" : "Mode manual aktif (lewat tombol)";
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/lcd/autocycle", HTTP_OPTIONS, []() {
+        addCorsHeaders();
+        server.send(200);
     });
 
     server.on("/lcd/invert", HTTP_GET, []() {
@@ -202,6 +249,143 @@ void setupWeb()
         }
         json += "],\"current\":" + String(getCurrentServerIndex()) + "}";
         server.send(200, "application/json", json);
+    });
+
+    // ── Beszel Hub & Server Monitor API ──
+    server.on("/api/beszel/config", HTTP_GET, []() {
+        addCorsHeaders();
+        const BeszelConfig &cfg = getBeszelConfig();
+        JsonDocument doc;
+        doc["hubUrl"] = cfg.hubUrl;
+        doc["email"] = cfg.email;
+        doc["isConfigured"] = cfg.isConfigured;
+        doc["hasToken"] = !cfg.token.isEmpty();
+        doc["pollIntervalMs"] = cfg.pollIntervalMs;
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/api/beszel/config", HTTP_POST, []() {
+        addCorsHeaders();
+        String url = server.hasArg("hubUrl") ? server.arg("hubUrl") : "";
+        String email = server.hasArg("email") ? server.arg("email") : "";
+        String pass = server.hasArg("password") ? server.arg("password") : "";
+        if (!url.isEmpty() && !email.isEmpty()) {
+            setBeszelConfig(url, email, pass);
+            server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Konfigurasi Beszel Hub berhasil disimpan\"}");
+        } else {
+            server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"hubUrl dan email wajib diisi\"}");
+        }
+    });
+
+    server.on("/api/beszel/test", HTTP_POST, []() {
+        addCorsHeaders();
+        String url = server.hasArg("hubUrl") ? server.arg("hubUrl") : getBeszelConfig().hubUrl;
+        String email = server.hasArg("email") ? server.arg("email") : getBeszelConfig().email;
+        String pass = server.hasArg("password") ? server.arg("password") : getBeszelConfig().password;
+        String outMsg;
+        int count = 0;
+        bool ok = testBeszelHub(url, email, pass, outMsg, count);
+        JsonDocument doc;
+        doc["status"] = ok ? "ok" : "error";
+        doc["message"] = outMsg;
+        doc["systemsCount"] = count;
+        String json;
+        serializeJson(doc, json);
+        server.send(ok ? 200 : 400, "application/json", json);
+    });
+
+    server.on("/api/beszel/sync", HTTP_POST, []() {
+        addCorsHeaders();
+        String outMsg;
+        bool ok = syncBeszelSystems(outMsg);
+        JsonDocument doc;
+        doc["status"] = ok ? "ok" : "error";
+        doc["message"] = outMsg;
+        doc["count"] = getServerCount();
+        String json;
+        serializeJson(doc, json);
+        server.send(ok ? 200 : 400, "application/json", json);
+    });
+
+    server.on("/api/servers", HTTP_GET, []() {
+        addCorsHeaders();
+        JsonDocument doc;
+        JsonArray arr = doc.to<JsonArray>();
+        for (int i = 0; i < getServerCount(); i++) {
+            const ServerMetrics *s = getServerAt(i);
+            if (s) {
+                JsonObject obj = arr.add<JsonObject>();
+                obj["index"] = i;
+                obj["name"] = s->name;
+                obj["host"] = s->host;
+                obj["systemId"] = s->systemId;
+                obj["isOnline"] = s->isOnline;
+                obj["cpu"] = s->cpuPercent;
+                obj["temp"] = s->cpuTemp;
+                obj["ram"] = s->ramPercent;
+                obj["ramUsed"] = s->ramUsedGB;
+                obj["ramTotal"] = s->ramTotalGB;
+                obj["disk"] = s->diskPercent;
+                obj["diskUsed"] = s->diskUsedGB;
+                obj["diskTotal"] = s->diskTotalGB;
+                obj["uptime"] = s->uptime;
+            }
+        }
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/api/servers/add", HTTP_POST, []() {
+        addCorsHeaders();
+        String name = server.hasArg("name") ? server.arg("name") : "";
+        String host = server.hasArg("host") ? server.arg("host") : "";
+        if (!name.isEmpty() && !host.isEmpty()) {
+            int idx = addServer(name, host);
+            server.send(200, "application/json", "{\"status\":\"ok\",\"index\":" + String(idx) + ",\"message\":\"Server berhasil ditambahkan\"}");
+        } else {
+            server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Nama dan Host server wajib diisi\"}");
+        }
+    });
+
+    server.on("/api/servers/delete", HTTP_POST, []() {
+        addCorsHeaders();
+        if (server.hasArg("index")) {
+            int idx = server.arg("index").toInt();
+            if (deleteServer(idx)) {
+                server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Server berhasil dihapus\"}");
+            } else {
+                server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Indeks server tidak valid\"}");
+            }
+        } else {
+            server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Parameter index wajib diisi\"}");
+        }
+    });
+
+    server.on("/api/servers/test", HTTP_POST, []() {
+        addCorsHeaders();
+        String host = "";
+        if (server.hasArg("host")) {
+            host = server.arg("host");
+        } else if (server.hasArg("index")) {
+            int idx = server.arg("index").toInt();
+            const ServerMetrics *s = getServerAt(idx);
+            if (s) host = s->host;
+        }
+        if (!host.isEmpty()) {
+            String outMsg;
+            bool ok = testServerConnection(host, outMsg);
+            JsonDocument doc;
+            doc["status"] = ok ? "ok" : "error";
+            doc["message"] = outMsg;
+            String json;
+            serializeJson(doc, json);
+            server.send(200, "application/json", json);
+        } else {
+            server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Host tidak valid\"}");
+        }
     });
 
     server.on("/sys/format", HTTP_GET, []() {

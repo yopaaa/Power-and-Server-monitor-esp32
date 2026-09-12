@@ -7,6 +7,7 @@
 #include "Devices.h"
 #include "PZEMManager.h"
 #include "ServerMonitor.h"
+#include "BeszelClient.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 
@@ -28,6 +29,7 @@ static unsigned long lastServerUpdate = 0;
 static int lastTouchState = LOW;
 static int lastBootState = HIGH;
 static unsigned long lastTriggerTime = 0;
+static unsigned long lastAutoCycleTime = 0;
 
 void setup()
 {
@@ -40,6 +42,7 @@ void setup()
     digitalWrite(LED_BUILTIN, LOW);
 
     initServerMonitor(); // Inisialisasi daftar server (Beszel Multi-Server)
+    initBeszelClient();  // Muat konfigurasi Beszel Hub dari LittleFS
     lcdInit();           // Membuka LCD dengan default PAGE_SERVER_MONITOR
     initDeviceID();
     initPZEM();
@@ -89,15 +92,26 @@ void loop()
     // Urutan Loop: Power Meter -> Server 1 -> Server 2 -> Server 3 -> Power Meter...
     if (triggered && (millis() - lastTriggerTime > 250)) {
         lastTriggerTime = millis();
+        lastAutoCycleTime = millis(); // Reset timer rotasi otomatis saat ditekan manual
         cycleNextScreen();
     }
 
     unsigned long currentMillis = millis();
 
+    // ── Rotasi Otomatis (Auto-Cycle tiap 20 detik jika mode aktif) ──
+    if (isAutoCycleEnabled() && (currentMillis - lastAutoCycleTime >= getAutoCycleInterval())) {
+        lastAutoCycleTime = currentMillis;
+        cycleNextScreen();
+    }
+
     // ── 2. Loop Server Monitor (Beszel) ──
     if (currentMillis - lastServerUpdate >= 1000) {
         lastServerUpdate = currentMillis;
-        updateServerMonitorMock(); // Simulasi fluktuasi halus untuk testing visual
+
+        // Coba polling data asli dari Beszel Hub; jika tidak terkonfigurasi jalankan mock halus
+        if (!pollBeszelMetrics()) {
+            updateServerMonitorMock();
+        }
 
         if (getDisplayPage() == PAGE_SERVER_MONITOR) {
             updateServerMonitorDisplay(getCurrentServer(), getCurrentServerIndex(), getServerCount());

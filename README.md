@@ -67,10 +67,11 @@ Project Power Meter dan Server Monitor berbasis ESP32 dengan sensor PZEM dan lay
 ## 📶 WiFi API
 | Endpoint | Metode | Parameter | Keterangan |
 |----------|--------|-----------|------------|
+| `/wifi/scan` | GET | - | Pindai access point (SSID, RSSI, channel, security) sekitar |
 | `/wifi/data` | GET | - | Ambil daftar konfigurasi WiFi tersimpan |
 | `/wifi/add` | POST | `ssid`, `pass`, `static` (opsional) | Simpan/update konfigurasi WiFi |
 | `/wifi/delete` | POST | `ssid` | Hapus WiFi yang tersimpan |
-| `/wifi/test` | POST | `ssid`, `pass` | Uji koneksi ke access point |
+| `/wifi/test` | POST | `ssid`, `pass`, `channel` (opsional) | Uji koneksi ke router & ambil IP DHCP |
 
 **Contoh curl**:
 ```sh
@@ -83,9 +84,28 @@ curl -X POST http://{{host}}/wifi/add \
 ## 🖥️ LCD Display API
 | Endpoint | Metode | Parameter | Keterangan |
 |----------|--------|-----------|------------|
+| `/lcd/autocycle` | GET/POST | `enabled` (0/1), `interval` (detik) | Atur/ambil mode rotasi otomatis (20 detik) vs manual tombol |
+| `/lcd/next` | GET | - | Pindah ke layar berikutnya dalam Carousel Loop |
+| `/lcd/prev` | GET | - | Pindah ke layar sebelumnya |
+| `/lcd/page` | GET | `val` (`server`/`power`) | Pindah langsung ke halaman tertentu |
 | `/lcd/brightness` | GET | `val` (0 - 255) | Atur kecerahan backlight LCD via PWM |
 | `/lcd/invert` | GET | - | Toggle invert warna layar LCD (untuk penyesuaian tipe panel) |
 | `/lcd/clear` | GET | - | Bersihkan layar LCD |
+
+---
+
+## 🖥️ Beszel Hub & Server Monitor API
+| Endpoint | Metode | Parameter | Keterangan |
+|----------|--------|-----------|------------|
+| `/api/beszel/config` | GET | - | Ambil konfigurasi URL & Email Beszel Hub |
+| `/api/beszel/config` | POST | `hubUrl`, `email`, `password` | Simpan kredensial koneksi Beszel Hub |
+| `/api/beszel/test` | POST | `hubUrl`, `email`, `password` | Uji koneksi & login ke Beszel Hub |
+| `/api/beszel/sync` | POST | - | Ambil & sinkronkan semua sistem dari Beszel Hub ke ESP32 |
+| `/api/servers` | GET | - | Ambil daftar server yang dimonitor (JSON) |
+| `/api/servers/add` | POST | `name`, `host` | Tambah server manual ke daftar |
+| `/api/servers/delete` | POST | `index` | Hapus server dari daftar |
+| `/api/servers/test` | POST | `host` atau `index` | Uji ping/koneksi langsung ke host server |
+
 
 ---
 

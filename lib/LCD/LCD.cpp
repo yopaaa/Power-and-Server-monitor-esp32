@@ -1,5 +1,6 @@
 #include "LCD.h"
 #include <math.h>
+#include <Preferences.h>
 
 TFT_eSPI tft = TFT_eSPI();
 const int ledChannel = 0;
@@ -18,8 +19,44 @@ static bool  prevInit = false;
 static String prevStatus = "";
 
 static bool isScreenInverted = false;
+static bool isAutoCycle = false;
+static uint32_t autoCycleIntervalMs = 20000; // 20 detik
 static DisplayPage currentPage = PAGE_SERVER_MONITOR; // Default to Server Monitor as requested
 static int screenIndex = 1; // 0 = Power Meter, 1..N = Server 1..N
+
+void loadLcdSettings() {
+    Preferences prefs;
+    if (prefs.begin("lcd_cfg", true)) {
+        isAutoCycle = prefs.getBool("autocycle", false);
+        autoCycleIntervalMs = prefs.getUInt("cycle_int", 20000);
+        prefs.end();
+    }
+}
+
+void saveLcdSettings() {
+    Preferences prefs;
+    if (prefs.begin("lcd_cfg", false)) {
+        prefs.putBool("autocycle", isAutoCycle);
+        prefs.putUInt("cycle_int", autoCycleIntervalMs);
+        prefs.end();
+    }
+}
+
+void setAutoCycle(bool enabled, uint32_t intervalMs) {
+    isAutoCycle = enabled;
+    if (intervalMs >= 5000) {
+        autoCycleIntervalMs = intervalMs;
+    }
+    saveLcdSettings();
+}
+
+bool isAutoCycleEnabled() {
+    return isAutoCycle;
+}
+
+uint32_t getAutoCycleInterval() {
+    return autoCycleIntervalMs;
+}
 
 void setDisplayPage(DisplayPage page) {
     currentPage = page;
@@ -68,7 +105,7 @@ void cyclePrevScreen() {
 }
 
 void lcdBacklight(bool on) { 
-    ledcWrite(ledChannel, on ? 240 : 0); 
+    ledcWrite(ledChannel, on ? 240 : 0);
 }
 
 void lcdBacklight(int brightness) {
@@ -93,6 +130,8 @@ bool lcdIsInverted() {
 
 void lcdInit()
 {
+    loadLcdSettings();
+
     ledcSetup(ledChannel, freq, resolution);
     ledcAttachPin(TFT_BL, ledChannel);
 
@@ -327,7 +366,9 @@ void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo)
 static float srvPrevCpu = -999.0f;
 static float srvPrevTemp = -999.0f;
 static float srvPrevRam = -999.0f;
+static float srvPrevRamUsed = -999.0f;
 static float srvPrevDisk = -999.0f;
+static float srvPrevDiskUsed = -999.0f;
 static int   srvPrevIdx = -1;
 static int   srvPrevCpuBar = -1;
 static int   srvPrevRamBar = -1;
@@ -340,7 +381,9 @@ void drawServerMonitorFrame(const ServerMetrics &srv, int serverIdx, int totalSe
     srvPrevCpu = -999.0f;
     srvPrevTemp = -999.0f;
     srvPrevRam = -999.0f;
+    srvPrevRamUsed = -999.0f;
     srvPrevDisk = -999.0f;
+    srvPrevDiskUsed = -999.0f;
     srvPrevCpuBar = -1;
     srvPrevRamBar = -1;
     srvPrevDiskBar = -1;
@@ -446,8 +489,9 @@ void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int tot
     }
 
     // 2. RAM Update
-    if (fabs(srv.ramPercent - srvPrevRam) >= 0.1f) {
+    if (fabs(srv.ramPercent - srvPrevRam) >= 0.1f || fabs(srv.ramUsedGB - srvPrevRamUsed) >= 0.05f) {
         srvPrevRam = srv.ramPercent;
+        srvPrevRamUsed = srv.ramUsedGB;
         tft.setTextColor(C_VALUE, C_CARD);
         tft.setTextPadding(105);
         snprintf(buf, sizeof(buf), "%.1f%%", srv.ramPercent);
@@ -456,7 +500,11 @@ void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int tot
         // Subtitle: Used / Total GB
         tft.setTextPadding(100);
         tft.setTextColor(C_TEXT, C_CARD);
-        snprintf(buf, sizeof(buf), "%.1f/%.0fGB", srv.ramUsedGB, srv.ramTotalGB);
+        if (fmod(srv.ramTotalGB, 1.0f) < 0.05f) {
+            snprintf(buf, sizeof(buf), "%.1f/%.0fGB", srv.ramUsedGB, srv.ramTotalGB);
+        } else {
+            snprintf(buf, sizeof(buf), "%.1f/%.1fGB", srv.ramUsedGB, srv.ramTotalGB);
+        }
         tft.drawRightString(buf, 222, 96, 1);
 
         // Progress bar
@@ -472,8 +520,9 @@ void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int tot
     }
 
     // 3. Disk Update
-    if (fabs(srv.diskPercent - srvPrevDisk) >= 0.1f) {
+    if (fabs(srv.diskPercent - srvPrevDisk) >= 0.1f || fabs(srv.diskUsedGB - srvPrevDiskUsed) >= 0.5f) {
         srvPrevDisk = srv.diskPercent;
+        srvPrevDiskUsed = srv.diskUsedGB;
         tft.setTextColor(C_VALUE, C_CARD);
         tft.setTextPadding(105);
         snprintf(buf, sizeof(buf), "%.1f%%", srv.diskPercent);

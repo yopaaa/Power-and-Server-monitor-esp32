@@ -23,6 +23,13 @@ void cyclePrevScreen();
 int getScreenIndex();
 void setScreenIndex(int idx);
 
+// Auto-Cycle Mode (Rotasi otomatis vs tombol manual)
+void setAutoCycle(bool enabled, uint32_t intervalMs = 20000);
+bool isAutoCycleEnabled();
+uint32_t getAutoCycleInterval();
+void loadLcdSettings();
+void saveLcdSettings();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Design System - High-Contrast Color Hunt Palette:
 // Base: #1b211a, #628141, #8bae66, #ebd5ab

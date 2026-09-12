@@ -10,6 +10,7 @@
 struct ServerMetrics {
     String name;         // Nama / Title server (contoh: "HOMELAB-01")
     String host;         // IP atau domain (contoh: "192.168.1.50")
+    String systemId;     // Beszel System Record ID (opsional jika dari Beszel Hub)
     bool   isOnline;     // Status koneksi (Online / Offline)
     float  cpuPercent;   // Persentase penggunaan CPU (0 - 100%)
     float  cpuTemp;      // Suhu CPU (°C)
@@ -28,11 +29,19 @@ void updateServerMonitorMock(); // Simulasi fluktuasi data hidup untuk pengujian
 int getServerCount();
 int getCurrentServerIndex();
 const ServerMetrics& getCurrentServer();
+const ServerMetrics* getServerAt(int index);
 void nextServer();
 void prevServer();
 void selectServer(int index);
 
 void setServerMetrics(int index, const ServerMetrics &metrics);
-int addServer(const String &name, const String &host);
+int addServer(const String &name, const String &host, const String &systemId = "");
+bool deleteServer(int index);
+void clearServers();
+void addOrUpdateServer(const ServerMetrics &s);
+
+// Persistensi LittleFS
+bool saveServersToFS();
+bool loadServersFromFS();
 
 #endif
