@@ -132,6 +132,21 @@ void setupWeb()
         server.send(200, "text/plain", "Web OTA active via POST /update or root page");
     });
 
+    server.on("/lcd/invert", HTTP_GET, []() {
+        lcdToggleInversion();
+        server.send(200, "application/json", String("{\"inverted\":") + (lcdIsInverted() ? "true" : "false") + "}");
+    });
+
+    server.on("/lcd/brightness", HTTP_GET, []() {
+        if (server.hasArg("val")) {
+            int b = server.arg("val").toInt();
+            lcdBacklight(b);
+            server.send(200, "application/json", "{\"status\":\"ok\",\"brightness\":" + String(b) + "}");
+        } else {
+            server.send(400, "application/json", "{\"error\":\"Missing val param (0-255)\"}");
+        }
+    });
+
     server.on("/sys/format", HTTP_GET, []() {
         Serial.println("[FS] Formatting LittleFS partition...");
         lcdClear(TFT_BLACK);

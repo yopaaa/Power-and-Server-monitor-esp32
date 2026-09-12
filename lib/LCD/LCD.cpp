@@ -1,11 +1,27 @@
 #include "LCD.h"
+#include <math.h>
 
 TFT_eSPI tft = TFT_eSPI();
 const int ledChannel = 0;
 const int freq = 5000;
 const int resolution = 8; // 8-bit (0-255)
 
-void lcdBacklight(bool on) { digitalWrite(TFT_BL, on ? HIGH : LOW); }
+// Flicker-free display cache
+static float prevPower = -999.0f;
+static float prevVolt = -999.0f;
+static float prevCurr = -999.0f;
+static float prevEnergy = -999.0f;
+static float prevFreq = -999.0f;
+static float prevPf = -999.0f;
+static bool  prevConn = false;
+static bool  prevInit = false;
+static String prevStatus = "";
+
+static bool isScreenInverted = false;
+
+void lcdBacklight(bool on) { 
+    ledcWrite(ledChannel, on ? 240 : 0); 
+}
 
 void lcdBacklight(int brightness) {
     if (brightness < 0) brightness = 0;
@@ -13,18 +29,28 @@ void lcdBacklight(int brightness) {
     ledcWrite(ledChannel, brightness);
 }
 
+void lcdToggleInversion() {
+    isScreenInverted = !isScreenInverted;
+    tft.invertDisplay(isScreenInverted);
+    drawPowerMeterFrame();
+}
+
+bool lcdIsInverted() {
+    return isScreenInverted;
+}
+
 void lcdInit()
 {
     ledcSetup(ledChannel, freq, resolution);
     ledcAttachPin(TFT_BL, ledChannel);
 
-    lcdBacklight(false);
+    lcdBacklight(0);
 
     tft.init();
     tft.setRotation(0);
     tft.fillScreen(C_BG);
 
-    lcdBacklight(true);
+    lcdBacklight(240); // 94% PWM: deep blacks, minimal backlight bleed
     drawPowerMeterFrame();
 }
 
@@ -58,10 +84,11 @@ void lcdPrintCenterX(String text, int line, uint16_t color, uint8_t size)
 // ─────────────────────────────────────────────────────────────────────────────
 void drawPowerMeterFrame()
 {
+    prevInit = false;
     tft.fillScreen(C_BG);
 
     // ── Header (Y: 0..24) ──
-    tft.fillRect(0, 0, 240, 2, C_ACCENT); // Top accent line
+    tft.fillRect(0, 0, 240, 3, C_ACCENT); // Top accent stripe
     tft.setTextSize(2);
     tft.setTextColor(C_TEXT, C_BG);
     tft.drawString("POWER METER", 12, 6);
@@ -71,55 +98,55 @@ void drawPowerMeterFrame()
     // ── Hero Card: Active Power (W) (Y: 28..92, H: 64) ──
     tft.fillRect(8, 28, 224, 64, C_CARD);
     tft.drawRect(8, 28, 224, 64, C_BORDER);
-    tft.fillRect(8, 28, 4, 4, C_ACCENT);
+    tft.fillRect(8, 28, 4, 64, C_ACCENT); // Left accent pill
     tft.setTextSize(1);
-    tft.setTextColor(C_DIM, C_CARD);
-    tft.drawString("ACTIVE POWER", 16, 33);
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawString("ACTIVE POWER", 18, 33);
     tft.setTextSize(2);
-    tft.setTextColor(C_ACCENT, C_CARD);
+    tft.setTextColor(C_ACCENT_HI, C_CARD);
     tft.drawString("W", 195, 58);
 
     // ── Middle Row: Voltage & Current (Y: 96..152, H: 56) ──
     // Left: Voltage (V)
     tft.fillRect(8, 96, 108, 56, C_CARD);
     tft.drawRect(8, 96, 108, 56, C_BORDER);
-    tft.fillRect(8, 96, 4, 4, C_ACCENT);
+    tft.fillRect(8, 96, 3, 56, C_PRIMARY);
     tft.setTextSize(1);
-    tft.setTextColor(C_DIM, C_CARD);
+    tft.setTextColor(C_TEXT, C_CARD);
     tft.drawString("VOLTAGE", 16, 101);
     tft.setTextSize(2);
-    tft.setTextColor(C_ACCENT, C_CARD);
+    tft.setTextColor(C_ACCENT_HI, C_CARD);
     tft.drawString("V", 98, 124);
 
     // Right: Current (A)
     tft.fillRect(124, 96, 108, 56, C_CARD);
     tft.drawRect(124, 96, 108, 56, C_BORDER);
-    tft.fillRect(124, 96, 4, 4, C_ACCENT);
+    tft.fillRect(124, 96, 3, 56, C_PRIMARY);
     tft.setTextSize(1);
-    tft.setTextColor(C_DIM, C_CARD);
+    tft.setTextColor(C_TEXT, C_CARD);
     tft.drawString("CURRENT", 132, 101);
     tft.setTextSize(2);
-    tft.setTextColor(C_ACCENT, C_CARD);
+    tft.setTextColor(C_ACCENT_HI, C_CARD);
     tft.drawString("A", 214, 124);
 
     // ── Bottom Row: Energy & Freq/PF (Y: 156..212, H: 56) ──
     // Left: Energy (kWh)
     tft.fillRect(8, 156, 108, 56, C_CARD);
     tft.drawRect(8, 156, 108, 56, C_BORDER);
-    tft.fillRect(8, 156, 4, 4, C_ACCENT);
+    tft.fillRect(8, 156, 3, 56, C_PRIMARY);
     tft.setTextSize(1);
-    tft.setTextColor(C_DIM, C_CARD);
+    tft.setTextColor(C_TEXT, C_CARD);
     tft.drawString("ENERGY", 16, 161);
     tft.setTextSize(1);
-    tft.setTextColor(C_ACCENT, C_CARD);
+    tft.setTextColor(C_ACCENT_HI, C_CARD);
     tft.drawString("kWh", 88, 192);
 
     // Right: Frequency & Power Factor
     tft.fillRect(124, 156, 108, 56, C_CARD);
     tft.drawRect(124, 156, 108, 56, C_BORDER);
-    tft.fillRect(124, 156, 4, 4, C_ACCENT);
+    tft.fillRect(124, 156, 3, 56, C_PRIMARY);
     tft.setTextSize(1);
-    tft.setTextColor(C_DIM, C_CARD);
+    tft.setTextColor(C_TEXT, C_CARD);
     tft.drawString("GRID STATUS", 132, 161);
 
     // ── Footer Bar (Y: 216..239) ──
@@ -129,96 +156,113 @@ void drawPowerMeterFrame()
 void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo)
 {
     char buf[20];
+    bool connChanged = (!prevInit || prevConn != m.isConnected);
 
     // 1. Power (W)
-    tft.fillRect(16, 48, 172, 36, C_CARD);
-    if (!m.isConnected) {
-        tft.setTextColor(C_DIM, C_CARD);
-        tft.drawString("--.-", 20, 52, 4);
-    } else {
-        tft.setTextColor(C_TEXT, C_CARD);
-        if (m.power >= 1000.0f) {
+    if (!prevInit || connChanged || (m.isConnected && fabs(m.power - prevPower) >= 0.1f)) {
+        prevPower = m.power;
+        tft.setTextColor(m.isConnected ? C_VALUE : C_DIM, C_CARD);
+        tft.setTextPadding(168); // Atomically clears & draws in 1 pass, no flicker!
+        if (!m.isConnected) {
+            tft.drawString("--.-", 20, 50, 4);
+        } else if (m.power >= 1000.0f) {
             snprintf(buf, sizeof(buf), "%.2f", m.power / 1000.0f);
             tft.drawString(buf, 20, 50, 4);
-            tft.setTextSize(2);
-            tft.setTextColor(C_ACCENT, C_CARD);
-            tft.drawString("kW", 188, 58);
+            tft.setTextPadding(28);
+            tft.setTextColor(C_ACCENT_HI, C_CARD);
+            tft.drawString("kW", 188, 58, 2);
         } else {
             snprintf(buf, sizeof(buf), "%.1f", m.power);
             tft.drawString(buf, 20, 50, 4);
-            tft.setTextSize(2);
-            tft.setTextColor(C_ACCENT, C_CARD);
-            tft.drawString("W ", 195, 58);
+            tft.setTextPadding(28);
+            tft.setTextColor(C_ACCENT_HI, C_CARD);
+            tft.drawString("W ", 195, 58, 2);
         }
     }
 
     // 2. Voltage (V)
-    tft.fillRect(14, 115, 80, 32, C_CARD);
-    if (!m.isConnected) {
-        tft.setTextColor(C_DIM, C_CARD);
-        tft.drawString("--.-", 16, 118, 4);
-    } else {
-        snprintf(buf, sizeof(buf), "%.1f", m.voltage);
-        tft.setTextColor(C_TEXT, C_CARD);
-        tft.drawString(buf, 16, 118, 4);
+    if (!prevInit || connChanged || (m.isConnected && fabs(m.voltage - prevVolt) >= 0.1f)) {
+        prevVolt = m.voltage;
+        tft.setTextColor(m.isConnected ? C_VALUE : C_DIM, C_CARD);
+        tft.setTextPadding(78);
+        if (!m.isConnected) {
+            tft.drawString("--.-", 16, 118, 4);
+        } else {
+            snprintf(buf, sizeof(buf), "%.1f", m.voltage);
+            tft.drawString(buf, 16, 118, 4);
+        }
     }
 
     // 3. Current (A)
-    tft.fillRect(130, 115, 80, 32, C_CARD);
-    if (!m.isConnected) {
-        tft.setTextColor(C_DIM, C_CARD);
-        tft.drawString("--.--", 132, 118, 4);
-    } else {
-        snprintf(buf, sizeof(buf), "%.2f", m.current);
-        tft.setTextColor(C_TEXT, C_CARD);
-        tft.drawString(buf, 132, 118, 4);
+    if (!prevInit || connChanged || (m.isConnected && fabs(m.current - prevCurr) >= 0.01f)) {
+        prevCurr = m.current;
+        tft.setTextColor(m.isConnected ? C_VALUE : C_DIM, C_CARD);
+        tft.setTextPadding(78);
+        if (!m.isConnected) {
+            tft.drawString("--.--", 132, 118, 4);
+        } else {
+            snprintf(buf, sizeof(buf), "%.2f", m.current);
+            tft.drawString(buf, 132, 118, 4);
+        }
     }
 
     // 4. Energy (kWh)
-    tft.fillRect(14, 175, 72, 32, C_CARD);
-    if (!m.isConnected) {
-        tft.setTextColor(C_DIM, C_CARD);
-        tft.drawString("--.-", 16, 178, 4);
-    } else {
-        if (m.energy < 100.0f) {
-            snprintf(buf, sizeof(buf), "%.2f", m.energy);
+    if (!prevInit || connChanged || (m.isConnected && fabs(m.energy - prevEnergy) >= 0.01f)) {
+        prevEnergy = m.energy;
+        tft.setTextColor(m.isConnected ? C_VALUE : C_DIM, C_CARD);
+        tft.setTextPadding(70);
+        if (!m.isConnected) {
+            tft.drawString("--.-", 16, 178, 4);
         } else {
-            snprintf(buf, sizeof(buf), "%.1f", m.energy);
+            if (m.energy < 100.0f) {
+                snprintf(buf, sizeof(buf), "%.2f", m.energy);
+            } else {
+                snprintf(buf, sizeof(buf), "%.1f", m.energy);
+            }
+            tft.drawString(buf, 16, 178, 4);
         }
-        tft.setTextColor(C_TEXT, C_CARD);
-        tft.drawString(buf, 16, 178, 4);
     }
 
     // 5. Grid Status: Frequency & PF
-    tft.fillRect(130, 175, 96, 34, C_CARD);
-    if (!m.isConnected) {
-        tft.setTextColor(C_DIM, C_CARD);
-        tft.drawString("F: -- Hz", 132, 176, 2);
-        tft.drawString("PF: ---", 132, 192, 2);
-    } else {
-        snprintf(buf, sizeof(buf), "F: %.1fHz", m.frequency);
-        tft.setTextColor(C_TEXT, C_CARD);
-        tft.drawString(buf, 132, 176, 2);
+    if (!prevInit || connChanged || (m.isConnected && (fabs(m.frequency - prevFreq) >= 0.1f || fabs(m.pf - prevPf) >= 0.01f))) {
+        prevFreq = m.frequency;
+        prevPf = m.pf;
+        tft.setTextPadding(94);
+        if (!m.isConnected) {
+            tft.setTextColor(C_DIM, C_CARD);
+            tft.drawString("F: -- Hz", 132, 176, 2);
+            tft.drawString("PF: ---", 132, 192, 2);
+        } else {
+            tft.setTextColor(C_TEXT, C_CARD);
+            snprintf(buf, sizeof(buf), "F: %.1fHz", m.frequency);
+            tft.drawString(buf, 132, 176, 2);
 
-        snprintf(buf, sizeof(buf), "PF: %.2f", m.pf);
-        tft.setTextColor(C_ACCENT, C_CARD);
-        tft.drawString(buf, 132, 192, 2);
+            tft.setTextColor(C_ACCENT_HI, C_CARD);
+            snprintf(buf, sizeof(buf), "PF: %.2f", m.pf);
+            tft.drawString(buf, 132, 192, 2);
+        }
     }
 
     // 6. Footer Status Bar
-    tft.fillRect(0, 218, 240, 22, C_BG);
-    if (m.isConnected) {
-        tft.setTextColor(C_ACCENT, C_BG);
-        tft.drawString("* PZEM OK", 10, 222, 2);
-    } else {
-        tft.setTextColor(C_ALERT, C_BG);
-        tft.drawString("! PZEM WAITING", 10, 222, 2);
-    }
+    if (!prevInit || connChanged || statusInfo != prevStatus) {
+        prevStatus = statusInfo;
+        tft.setTextPadding(115);
+        if (m.isConnected) {
+            tft.setTextColor(C_ACCENT_HI, C_BG);
+            tft.drawString("* PZEM OK", 10, 222, 2);
+        } else {
+            tft.setTextColor(C_ALERT, C_BG);
+            tft.drawString("! NO COMM", 10, 222, 2);
+        }
 
-    if (statusInfo.length() > 0) {
-        tft.setTextColor(C_DIM, C_BG);
+        tft.setTextColor(C_TEXT, C_BG);
+        tft.setTextPadding(110);
         tft.drawRightString(statusInfo, 230, 224, 1);
     }
+
+    prevConn = m.isConnected;
+    prevInit = true;
+    tft.setTextPadding(0); // Reset padding
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

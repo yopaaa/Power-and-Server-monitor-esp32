@@ -348,47 +348,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </header>
 
     <div class="grid">
-      <!-- Card 1: Real-Time Power Metrics (PZEM-004T) -->
-      <div class="card full-width">
-        <h2>
-          <span>Metrik Sensor PZEM-004T</span>
-          <span id="pzem-badge" class="badge" style="font-size: 11px;">Membaca...</span>
-        </h2>
-        <div class="stat-grid">
-          <div class="stat-box" style="border-color: var(--accent);">
-            <div class="stat-label">Active Power</div>
-            <div class="stat-val" id="val-power" style="font-size: 20px; color: var(--accent);">-- W</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Tegangan (V)</div>
-            <div class="stat-val" id="val-volt">-- V</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Arus (A)</div>
-            <div class="stat-val" id="val-curr">-- A</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Energi Terpakai</div>
-            <div class="stat-val" id="val-energy">-- kWh</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Frekuensi Listrik</div>
-            <div class="stat-val" id="val-freq">-- Hz</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Power Factor (PF)</div>
-            <div class="stat-val" id="val-pf">--</div>
-          </div>
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button type="button" class="btn-outline" style="max-width: 250px;" onclick="resetPzemEnergy()">
-            Reset Penghitung Energi
-          </button>
-          <div id="pzem-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
-        </div>
-      </div>
-
-      <!-- Card 2: System Information -->
+      <!-- Card: System Information -->
       <div class="card full-width">
         <h2>
           <span>Informasi Sistem ESP32</span>
@@ -440,11 +400,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <button type="button" class="btn-outline" style="max-width: 250px;" onclick="formatFS()">
             Hapus Data Gambar (Format FS)
           </button>
+          <button type="button" class="btn-outline" style="max-width: 200px;" onclick="toggleLcdInvert()">
+            Balik Warna LCD (Invert)
+          </button>
           <div id="sys-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
         </div>
       </div>
 
-      <!-- Card 3: WiFi Configuration -->
+      <!-- Card: WiFi Configuration -->
       <div class="card">
         <h2>Konfigurasi WiFi Baru</h2>
         <div class="form-group">
@@ -487,7 +450,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
       </div>
 
-      <!-- Card 4: Saved WiFi List -->
+      <!-- Card: Saved WiFi List -->
       <div class="card">
         <h2>WiFi Tersimpan</h2>
         <div class="wifi-list" id="wifiList">
@@ -495,7 +458,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
       </div>
 
-      <!-- Card 5: Web OTA Firmware Update -->
+      <!-- Card: Web OTA Firmware Update -->
       <div class="card full-width">
         <h2>Web OTA Firmware Update</h2>
         <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 14px;">
@@ -530,32 +493,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         const res = await fetch("/sys/info");
         const data = await res.json();
         
-        // Update PZEM Metrics
-        if (data.pzem) {
-          const p = data.pzem;
-          const pBadge = document.getElementById("pzem-badge");
-          if (p.connected) {
-            pBadge.innerHTML = '<span class="dot"></span> PZEM ONLINE';
-            pBadge.style.color = 'var(--accent)';
-            document.getElementById("val-power").textContent = p.power.toFixed(1) + " W";
-            document.getElementById("val-volt").textContent = p.voltage.toFixed(1) + " V";
-            document.getElementById("val-curr").textContent = p.current.toFixed(2) + " A";
-            document.getElementById("val-energy").textContent = p.energy.toFixed(2) + " kWh";
-            document.getElementById("val-freq").textContent = p.frequency.toFixed(1) + " Hz";
-            document.getElementById("val-pf").textContent = p.pf.toFixed(2);
-          } else {
-            pBadge.innerHTML = 'PZEM WAITING COMM';
-            pBadge.style.color = 'var(--text-dim)';
-            document.getElementById("val-power").textContent = "-- W";
-            document.getElementById("val-volt").textContent = "-- V";
-            document.getElementById("val-curr").textContent = "-- A";
-            document.getElementById("val-energy").textContent = "-- kWh";
-            document.getElementById("val-freq").textContent = "-- Hz";
-            document.getElementById("val-pf").textContent = "--";
-          }
-        }
-
-        // Update System Info
         document.getElementById("val-chip").textContent = data.chipId || "-";
         document.getElementById("val-cpu").textContent = data.cpuFreqMHz ? data.cpuFreqMHz + " MHz" : "-";
         document.getElementById("val-heap").textContent = data.freeHeap ? Math.round(data.freeHeap / 1024) + " KB" : "-";
@@ -596,28 +533,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    async function resetPzemEnergy() {
-      if (!confirm("PERINGATAN: Apakah Anda yakin ingin mereset akumulasi hitungan energi (kWh) PZEM menjadi 0?")) return;
-      const statusEl = document.getElementById("pzem-action-status");
-      statusEl.style.color = "var(--text)";
-      statusEl.textContent = "Mereset penghitung energi...";
-      try {
-        const res = await fetch("/pzem/reset", { method: "POST" });
-        const d = await res.json();
-        if (d.status === "ok") {
-          statusEl.style.color = "var(--accent)";
-          statusEl.textContent = "Penghitung energi berhasil direset ke 0 kWh!";
-          loadSysInfo();
-        } else {
-          statusEl.style.color = "var(--danger)";
-          statusEl.textContent = "Gagal mereset.";
-        }
-      } catch (e) {
-        statusEl.style.color = "var(--danger)";
-        statusEl.textContent = "Error komunikasi.";
-      }
-    }
-
     async function formatFS() {
       if (!confirm("PERINGATAN: Apakah Anda yakin ingin memformat partisi LittleFS?\nSemua file/gambar lama di partisi penyimpanan akan dihapus permanen.")) return;
       const statusEl = document.getElementById("sys-action-status");
@@ -636,6 +551,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       } catch (e) {
         statusEl.style.color = "var(--danger)";
         statusEl.textContent = "Error menghubungi perangkat.";
+      }
+    }
+
+    async function toggleLcdInvert() {
+      const statusEl = document.getElementById("sys-action-status");
+      statusEl.style.color = "var(--text)";
+      statusEl.textContent = "Mengubah mode invert warna LCD...";
+      try {
+        const res = await fetch("/lcd/invert");
+        const d = await res.json();
+        statusEl.style.color = "var(--accent)";
+        statusEl.textContent = "Invert LCD: " + (d.inverted ? "AKTIF" : "NONAKTIF");
+      } catch (e) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Gagal mengubah invert: " + e.message;
       }
     }
 
@@ -780,10 +710,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     // Inisialisasi data
     loadSysInfo();
     loadWiFiList();
-    setInterval(loadSysInfo, 3000);
+    setInterval(loadSysInfo, 10000);
   </script>
 </body>
 </html>
+
 )rawliteral";
 
-#endif // INDEX_HTML_H
+#endif

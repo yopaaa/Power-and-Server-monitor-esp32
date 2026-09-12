@@ -394,6 +394,9 @@
           <button type="button" class="btn-outline" style="max-width: 250px;" onclick="formatFS()">
             Hapus Data Gambar (Format FS)
           </button>
+          <button type="button" class="btn-outline" style="max-width: 200px;" onclick="toggleLcdInvert()">
+            Balik Warna LCD (Invert)
+          </button>
           <div id="sys-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
         </div>
       </div>
@@ -542,6 +545,21 @@
       } catch (e) {
         statusEl.style.color = "var(--danger)";
         statusEl.textContent = "Error menghubungi perangkat.";
+      }
+    }
+
+    async function toggleLcdInvert() {
+      const statusEl = document.getElementById("sys-action-status");
+      statusEl.style.color = "var(--text)";
+      statusEl.textContent = "Mengubah mode invert warna LCD...";
+      try {
+        const res = await fetch("/lcd/invert");
+        const d = await res.json();
+        statusEl.style.color = "var(--accent)";
+        statusEl.textContent = "Invert LCD: " + (d.inverted ? "AKTIF" : "NONAKTIF");
+      } catch (e) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Gagal mengubah invert: " + e.message;
       }
     }
 
