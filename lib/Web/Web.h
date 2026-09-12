@@ -7,5 +7,6 @@
 extern WebServer server;
 
 void setupWeb();
+void handleWebReboot();
 
 #endif

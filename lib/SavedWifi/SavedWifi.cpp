@@ -204,5 +204,9 @@ void startAP()
         Serial.println("mDNS: http://esp.local");
         MDNS.addService("http", "tcp", 80);
     }
-    showCenterImage("/qr-wifi.jpg");
+
+    lcdClear(TFT_BLACK);
+    lcdPrintCenterX("AP Mode Active", 1, TFT_ORANGE, 2);
+    lcdPrintCenterX("SSID: ESP32-Config", 3, TFT_YELLOW, 2);
+    lcdPrintCenterX(WiFi.softAPIP().toString(), 5, TFT_CYAN, 2);
 }

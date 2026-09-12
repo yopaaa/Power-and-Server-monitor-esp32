@@ -2,8 +2,6 @@
 #include "SavedWifi.h"
 #include "index_html.h"
 
-bool otaEnabled = false;
-
 void setupWifiApi(WebServer &server)
 {
     server.on("/welcome", HTTP_GET, [&server]() {

@@ -122,6 +122,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <h3>WiFi Tersimpan</h3>
           <div id="wifiList">Loading...</div>
         </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <h3>Web OTA Firmware Update</h3>
+          <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">Upload file <code>firmware.bin</code> untuk flash firmware baru secara Over-The-Air.</p>
+          <form id="ota-form">
+            <input type="file" id="file-input" name="update" accept=".bin" required style="margin-bottom: 10px;" />
+            <button type="submit" id="btnUpdate" style="background: #e67e22; color: white;">Mulai Update Firmware</button>
+          </form>
+          <div id="prg-bar" style="display:none; background: #eee; border-radius: 4px; height: 18px; margin-top: 12px; overflow: hidden; border: 1px solid #ccc;">
+            <div id="prg-fill" style="background: #27ae60; height: 100%; width: 0%; transition: width 0.15s;"></div>
+          </div>
+          <div id="ota-status" style="margin-top: 10px; font-weight: bold; font-family: monospace; font-size: 13px;"></div>
+        </div>
       </div>
     </div>
 
@@ -237,6 +250,52 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       document.getElementById("btnTest").onclick = () => sendData("/wifi/test");
 
       document.getElementById("btnSave").onclick = () => sendData("/wifi/add");
+
+      document.getElementById("ota-form").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById("file-input");
+        if (fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append("update", file);
+
+        const xhr = new XMLHttpRequest();
+        const prgBar = document.getElementById("prg-bar");
+        const prgFill = document.getElementById("prg-fill");
+        const status = document.getElementById("ota-status");
+        const btn = document.getElementById("btnUpdate");
+
+        prgBar.style.display = "block";
+        prgFill.style.width = "0%";
+        status.innerText = "Memulai upload...";
+        btn.disabled = true;
+
+        xhr.upload.addEventListener("progress", function(e) {
+          if (e.lengthComputable) {
+            const p = Math.round((e.loaded / e.total) * 100);
+            prgFill.style.width = p + "%";
+            status.innerText = "Uploading: " + p + "%";
+          }
+        });
+
+        xhr.addEventListener("load", function() {
+          status.innerText = xhr.responseText;
+          if (xhr.status === 200) {
+            prgFill.style.width = "100%";
+            status.innerText = xhr.responseText + " Silakan refresh halaman setelah ESP32 restart.";
+          } else {
+            btn.disabled = false;
+          }
+        });
+
+        xhr.addEventListener("error", function() {
+          status.innerText = "Upload gagal! Periksa koneksi ke perangkat.";
+          btn.disabled = false;
+        });
+
+        xhr.open("POST", "/update");
+        xhr.send(formData);
+      });
 
       loadWiFiList();
     </script>

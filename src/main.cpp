@@ -1,13 +1,9 @@
 #include "SavedWifi.h"
 #include "Web.h"
 #include <ESPmDNS.h>
-#include <ElegantOTA.h>
 
-#include "FsManager.h"
 #include "LCD.h"
 #include "Lcd_api.h"
-
-#include "Services.h"
 #include "Devices.h"
 
 #ifndef LED_BUILTIN
@@ -16,12 +12,9 @@
 
 void setup()
 {
-    Serial.begin(9600);
-    fsInit();
+    Serial.begin(115200);
     lcdInit();
     initDeviceID();
-
-    pinMode(33, INPUT);
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -37,18 +30,15 @@ void setup()
     setupWeb();
     initUDPDiscovery();
 
-    lcdPrint("HTTP server started", 10, 40, TFT_RED, 2);
-
-    loadService();
+    lcdClear(TFT_BLACK);
+    lcdPrintCenterX("Power Meter", 1, TFT_YELLOW, 2);
+    lcdPrintCenterX("WiFi Connected", 3, TFT_GREEN, 2);
+    lcdPrintCenterX(WiFi.localIP().toString(), 4, TFT_CYAN, 2);
 }
 
 void loop()
 {
     server.handleClient();
-    if (otaEnabled) {
-        ElegantOTA.loop();
-    }
-
-    servicesLoop();
+    handleWebReboot();
     handleUDPDiscovery();
 }
