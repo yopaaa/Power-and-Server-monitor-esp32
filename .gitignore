@@ -4,3 +4,10 @@
 .vscode/launch.json
 .vscode/ipch
 data/
+
+# Environment & Secrets
+.env
+.env.*
+*.key
+*.pem
+secrets.h
