@@ -4,7 +4,9 @@
 #include "Wifi_api.h"
 #include "index_html.h"
 #include "LCD.h"
+#include "PZEMManager.h"
 #include <Update.h>
+#include <LittleFS.h>
 
 WebServer server(80);
 
@@ -104,13 +106,51 @@ void setupWeb()
         json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
         json += "\"wifiMode\":" + String(WiFi.getMode()) + ",";
         json += "\"wifiStatus\":" + String(WiFi.status()) + ",";
+
+        const PZEMMetrics &m = getPZEMMetrics();
+        json += "\"pzem\":{";
+        json += "\"connected\":" + String(m.isConnected ? "true" : "false") + ",";
+        json += "\"voltage\":" + String(m.voltage, 1) + ",";
+        json += "\"current\":" + String(m.current, 2) + ",";
+        json += "\"power\":" + String(m.power, 1) + ",";
+        json += "\"energy\":" + String(m.energy, 2) + ",";
+        json += "\"frequency\":" + String(m.frequency, 1) + ",";
+        json += "\"pf\":" + String(m.pf, 2);
+        json += "},";
+
         json += "\"otaReady\":true";
         json += "}";
         server.send(200, "application/json", json);
     });
 
+    server.on("/pzem/reset", HTTP_POST, []() {
+        resetPZEMEnergy();
+        server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"PZEM energy counter reset\"}");
+    });
+
     server.on("/ota", HTTP_GET, []() {
         server.send(200, "text/plain", "Web OTA active via POST /update or root page");
+    });
+
+    server.on("/sys/format", HTTP_GET, []() {
+        Serial.println("[FS] Formatting LittleFS partition...");
+        lcdClear(TFT_BLACK);
+        lcdPrintCenterX("Formatting FS...", 2, TFT_ORANGE, 2);
+
+        bool ok = false;
+        if (LittleFS.begin(true)) {
+            ok = LittleFS.format();
+        }
+
+        if (ok) {
+            Serial.println("[FS] LittleFS formatted successfully");
+            lcdPrintCenterX("FS Formatted OK", 4, TFT_GREEN, 2);
+            server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"LittleFS partition formatted successfully\"}");
+        } else {
+            Serial.println("[FS] LittleFS format failed");
+            lcdPrintCenterX("Format Failed", 4, TFT_RED, 2);
+            server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to format LittleFS\"}");
+        }
     });
 
     // Custom Web OTA Route

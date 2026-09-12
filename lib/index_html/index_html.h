@@ -1,304 +1,789 @@
+#ifndef INDEX_HTML_H
+#define INDEX_HTML_H
+
+#include <Arduino.h>
+
 const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!doctype html>
-<html>
-  <head>
-    <title>ESP Config</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body {
-        font-family: sans-serif;
-        margin: 20px;
-        line-height: 1.6;
-        color: #333;
-      }
-      .container {
-        padding: 20px;
-        margin: auto;
-      }
-      input[type="text"],
-      input[type="password"] {
-        width: 100%;
-        padding: 8px;
-        margin: 5px 0 15px;
-        box-sizing: border-box;
-      }
-      .hidden {
-        display: none;
-      }
-      pre {
-        background: #eee;
-        padding: 10px;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-      button {
-        width: 100%;
-        padding: 10px;
-        cursor: pointer;
-        border: none;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        font-weight: bold;
-      }
-      #btnTest {
-        background: #008cba;
-        color: white;
-      }
-      #btnSave {
-        background: #4caf50;
-        color: white;
-      }
-      .deleteBtn {
-        background: #e53935;
-        color: white;
-        margin-top: 5px;
-      }
-      .card {
-        border: 1px solid #ddd;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 2px 2px 5px #eee;
-        margin-bottom: 20px;
-      }
-      .wifiItem {
-        border-bottom: 1px solid #eee;
-        padding: 8px 0;
-      }
-      .container-card {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-      }
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>Power Meter &amp; System Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #1b211a;
+      --surface: #222a21;
+      --surface-inner: #171c16;
+      --border: #354233;
+      --border-light: #445441;
+      --primary: #628141;
+      --primary-hover: #73964c;
+      --accent: #8bae66;
+      --accent-dim: rgba(139, 174, 102, 0.15);
+      --text: #ebd5ab;
+      --text-dim: #b8a88a;
+      --danger: #9e2a2b;
+      --danger-hover: #c0392b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 16px;
+    }
+    .wrapper {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0 20px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      gap: 12px;
+    }
+    .brand h1 {
+      font-size: 22px;
+      color: var(--text);
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+    .brand p {
+      font-size: 12px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .badge-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .full-width {
+      grid-column: 1 / -1;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .card h2 {
+      font-size: 15px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .card h2 .action-link {
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .card h2 .action-link:hover {
+      color: var(--accent);
+    }
 
-      @media (max-width: 700px) {
-        .container {
-          padding: 10px;
-          margin: auto;
-        }
-        .container-card {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h2>WiFi Config</h2>
+    /* System Stats Grid */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-box {
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: ui-monospace, monospace;
+      word-break: break-all;
+    }
 
-      <div class="container-card">
-        <div class="card">
-          <h3>Tambah / Update WiFi</h3>
-          SSID: <input id="ssid" type="text" placeholder="Nama WiFi" />
-          <br />
-          Password:<input id="pass" type="password" placeholder="Password" />
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="file"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+    input[type="file"] {
+      cursor: pointer;
+    }
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text);
+      margin-top: 4px;
+    }
+    .hidden {
+      display: none;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button {
+      flex: 1;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--text);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      color: #fff;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-light);
+      color: var(--accent);
+    }
+    .btn-outline:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
-          <label
-            ><input
-              type="checkbox"
-              id="static"
-              onchange="toggleStatic()"
-              disabled
-            />
-            Gunakan Static IP</label
-          ><br /><br />
+    /* WiFi Item List */
+    .wifi-list {
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .wifi-item {
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .wifi-item .info {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .wifi-item .info strong {
+      color: var(--accent);
+      font-size: 13px;
+    }
+    .wifi-item .info span {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+    .btn-del {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: #e74c3c;
+      padding: 6px 12px;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      flex: 0;
+    }
+    .btn-del:hover {
+      background: rgba(231, 76, 60, 0.15);
+      border-color: #e74c3c;
+    }
 
-          <div id="static_fields" class="hidden">
-            IP Address:
-            <input id="ip" type="text" value="192.168.1.15" /> Gateway:
-            <input id="gw" type="text" value="192.168.1.1" /> Subnet:
-            <input id="sn" type="text" value="255.255.255.0" />
+    /* Progress & Status */
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 14px;
+      display: none;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.15s ease-in-out;
+    }
+    .status-msg {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: var(--surface-inner);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+      font-family: ui-monospace, monospace;
+      color: var(--text);
+    }
+    pre {
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="brand">
+        <h1>POWER METER</h1>
+        <p>System &amp; Network Manager</p>
+      </div>
+      <div class="badge-bar">
+        <div class="badge"><span class="dot"></span> Online</div>
+        <div class="badge" id="badge-ip">IP: ...</div>
+        <div class="badge" id="badge-rssi">RSSI: ...</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Card 1: Real-Time Power Metrics (PZEM-004T) -->
+      <div class="card full-width">
+        <h2>
+          <span>Metrik Sensor PZEM-004T</span>
+          <span id="pzem-badge" class="badge" style="font-size: 11px;">Membaca...</span>
+        </h2>
+        <div class="stat-grid">
+          <div class="stat-box" style="border-color: var(--accent);">
+            <div class="stat-label">Active Power</div>
+            <div class="stat-val" id="val-power" style="font-size: 20px; color: var(--accent);">-- W</div>
           </div>
-
-          <button type="button" id="btnTest">Cek Koneksi</button>
-          <button type="button" id="btnSave">Simpan WiFi</button>
-
-          <strong>Status:</strong>
-          <pre id="out">Ready</pre>
-        </div>
-
-        <div class="card">
-          <h3>WiFi Tersimpan</h3>
-          <div id="wifiList">Loading...</div>
-        </div>
-
-        <div class="card" style="grid-column: 1 / -1;">
-          <h3>Web OTA Firmware Update</h3>
-          <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">Upload file <code>firmware.bin</code> untuk flash firmware baru secara Over-The-Air.</p>
-          <form id="ota-form">
-            <input type="file" id="file-input" name="update" accept=".bin" required style="margin-bottom: 10px;" />
-            <button type="submit" id="btnUpdate" style="background: #e67e22; color: white;">Mulai Update Firmware</button>
-          </form>
-          <div id="prg-bar" style="display:none; background: #eee; border-radius: 4px; height: 18px; margin-top: 12px; overflow: hidden; border: 1px solid #ccc;">
-            <div id="prg-fill" style="background: #27ae60; height: 100%; width: 0%; transition: width 0.15s;"></div>
+          <div class="stat-box">
+            <div class="stat-label">Tegangan (V)</div>
+            <div class="stat-val" id="val-volt">-- V</div>
           </div>
-          <div id="ota-status" style="margin-top: 10px; font-weight: bold; font-family: monospace; font-size: 13px;"></div>
+          <div class="stat-box">
+            <div class="stat-label">Arus (A)</div>
+            <div class="stat-val" id="val-curr">-- A</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Energi Terpakai</div>
+            <div class="stat-val" id="val-energy">-- kWh</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Frekuensi Listrik</div>
+            <div class="stat-val" id="val-freq">-- Hz</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Power Factor (PF)</div>
+            <div class="stat-val" id="val-pf">--</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="btn-outline" style="max-width: 250px;" onclick="resetPzemEnergy()">
+            Reset Penghitung Energi
+          </button>
+          <div id="pzem-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
         </div>
       </div>
+
+      <!-- Card 2: System Information -->
+      <div class="card full-width">
+        <h2>
+          <span>Informasi Sistem ESP32</span>
+          <span class="action-link" onclick="loadSysInfo()">Segarkan Info</span>
+        </h2>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-label">Chip ID</div>
+            <div class="stat-val" id="val-chip">Memuat...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">CPU Freq</div>
+            <div class="stat-val" id="val-cpu">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Free Heap</div>
+            <div class="stat-val" id="val-heap">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Flash Size</div>
+            <div class="stat-val" id="val-flash">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Uptime</div>
+            <div class="stat-val" id="val-uptime">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Status WiFi</div>
+            <div class="stat-val" id="val-status">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Local IP</div>
+            <div class="stat-val" id="val-ip">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Gateway</div>
+            <div class="stat-val" id="val-gw">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Signal RSSI</div>
+            <div class="stat-val" id="val-rssi">...</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Web OTA</div>
+            <div class="stat-val" style="color: var(--accent);">READY</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="btn-outline" style="max-width: 250px;" onclick="formatFS()">
+            Hapus Data Gambar (Format FS)
+          </button>
+          <div id="sys-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
+        </div>
+      </div>
+
+      <!-- Card 3: WiFi Configuration -->
+      <div class="card">
+        <h2>Konfigurasi WiFi Baru</h2>
+        <div class="form-group">
+          <label>Nama WiFi (SSID)</label>
+          <input id="ssid" type="text" placeholder="Masukkan SSID WiFi" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="pass" type="password" placeholder="Masukkan Password" />
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="static" onchange="toggleStatic()" />
+            Gunakan Static IP
+          </label>
+        </div>
+        <div id="static_fields" class="hidden">
+          <div class="form-group">
+            <label>IP Address</label>
+            <input id="ip" type="text" value="192.168.1.50" />
+          </div>
+          <div class="form-group">
+            <label>Gateway</label>
+            <input id="gw" type="text" value="192.168.1.1" />
+          </div>
+          <div class="form-group">
+            <label>Subnet Mask</label>
+            <input id="sn" type="text" value="255.255.255.0" />
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn-outline" id="btnTest">Cek Koneksi</button>
+          <button type="button" class="btn-primary" id="btnSave">Simpan WiFi</button>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <label>Status Tes:</label>
+          <pre id="out">Ready</pre>
+        </div>
+      </div>
+
+      <!-- Card 4: Saved WiFi List -->
+      <div class="card">
+        <h2>WiFi Tersimpan</h2>
+        <div class="wifi-list" id="wifiList">
+          <div style="color: var(--text-dim); font-size: 12px;">Memuat data...</div>
+        </div>
+      </div>
+
+      <!-- Card 5: Web OTA Firmware Update -->
+      <div class="card full-width">
+        <h2>Web OTA Firmware Update</h2>
+        <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 14px;">
+          Pilih file biner <code>firmware.bin</code> hasil kompilasi PlatformIO untuk melakukan update firmware langsung ke ESP32 secara nirkabel.
+        </p>
+        <form id="ota-form">
+          <div class="form-group">
+            <input type="file" id="file-input" name="update" accept=".bin" required />
+          </div>
+          <button type="submit" class="btn-primary" id="btnUpdate" style="max-width: 250px;">
+            Mulai Flash Firmware
+          </button>
+        </form>
+        <div class="progress-track" id="prg-bar">
+          <div class="progress-fill" id="prg-fill"></div>
+        </div>
+        <div id="ota-status" class="status-msg" style="display: none;"></div>
+      </div>
     </div>
+  </div>
 
-    <script>
-      const out = document.getElementById("out");
-      const wifiListDiv = document.getElementById("wifiList");
+  <script>
+    const out = document.getElementById("out");
+    const wifiListDiv = document.getElementById("wifiList");
 
-      function toggleStatic() {
-        document
-          .getElementById("static_fields")
-          .classList.toggle(
-            "hidden",
-            !document.getElementById("static").checked,
-          );
-      }
+    function toggleStatic() {
+      document.getElementById("static_fields").classList.toggle("hidden", !document.getElementById("static").checked);
+    }
 
-      async function loadWiFiList() {
-        try {
-          const res = await fetch("/wifi/data");
-          const data = await res.json();
-          
-
-          if (!data.wifiList || data.wifiList.length === 0) {
-            wifiListDiv.innerHTML = "Belum ada WiFi tersimpan.";
-            return;
+    async function loadSysInfo() {
+      try {
+        const res = await fetch("/sys/info");
+        const data = await res.json();
+        
+        // Update PZEM Metrics
+        if (data.pzem) {
+          const p = data.pzem;
+          const pBadge = document.getElementById("pzem-badge");
+          if (p.connected) {
+            pBadge.innerHTML = '<span class="dot"></span> PZEM ONLINE';
+            pBadge.style.color = 'var(--accent)';
+            document.getElementById("val-power").textContent = p.power.toFixed(1) + " W";
+            document.getElementById("val-volt").textContent = p.voltage.toFixed(1) + " V";
+            document.getElementById("val-curr").textContent = p.current.toFixed(2) + " A";
+            document.getElementById("val-energy").textContent = p.energy.toFixed(2) + " kWh";
+            document.getElementById("val-freq").textContent = p.frequency.toFixed(1) + " Hz";
+            document.getElementById("val-pf").textContent = p.pf.toFixed(2);
+          } else {
+            pBadge.innerHTML = 'PZEM WAITING COMM';
+            pBadge.style.color = 'var(--text-dim)';
+            document.getElementById("val-power").textContent = "-- W";
+            document.getElementById("val-volt").textContent = "-- V";
+            document.getElementById("val-curr").textContent = "-- A";
+            document.getElementById("val-energy").textContent = "-- kWh";
+            document.getElementById("val-freq").textContent = "-- Hz";
+            document.getElementById("val-pf").textContent = "--";
           }
-
-          wifiListDiv.innerHTML = "";
-
-          data.wifiList.forEach((w) => {
-            const div = document.createElement("div");
-            div.className = "wifiItem";
-            div.innerHTML = `
-            <strong>${w.ssid}</strong><br>
-            Static: ${w.useStatic}<br>
-            IP: ${w.ip}<br>
-            Gateway: ${w.gateway}<br>
-            Subnet: ${w.subnet}
-            <button class="deleteBtn" onclick="deleteWiFi('${w.ssid}')">
-              Delete
-            </button>
-          `;
-            wifiListDiv.appendChild(div);
-          });
-        } catch (e) {
-          wifiListDiv.innerHTML = "Gagal memuat data.";
         }
+
+        // Update System Info
+        document.getElementById("val-chip").textContent = data.chipId || "-";
+        document.getElementById("val-cpu").textContent = data.cpuFreqMHz ? data.cpuFreqMHz + " MHz" : "-";
+        document.getElementById("val-heap").textContent = data.freeHeap ? Math.round(data.freeHeap / 1024) + " KB" : "-";
+        document.getElementById("val-flash").textContent = data.flashSize ? Math.round(data.flashSize / (1024 * 1024)) + " MB" : "-";
+
+        const sec = Math.floor((data.uptimeMs || 0) / 1000);
+        const d = Math.floor(sec / 86400);
+        const h = Math.floor((sec % 86400) / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        let upStr = "";
+        if (d > 0) upStr += d + "d ";
+        if (h > 0 || d > 0) upStr += h + "h ";
+        upStr += m + "m " + s + "s";
+        document.getElementById("val-uptime").textContent = upStr;
+
+        document.getElementById("val-ip").textContent = data.localIP || "-";
+        document.getElementById("val-gw").textContent = data.gateway || "-";
+        document.getElementById("badge-ip").textContent = "IP: " + (data.localIP || "-");
+
+        const rssi = data.rssi;
+        let rssiLabel = "N/A";
+        if (rssi) {
+          rssiLabel = rssi + " dBm";
+          if (rssi >= -60) rssiLabel += " (Bagus)";
+          else if (rssi >= -75) rssiLabel += " (Cukup)";
+          else rssiLabel += " (Lemah)";
+        }
+        document.getElementById("val-rssi").textContent = rssiLabel;
+        document.getElementById("badge-rssi").textContent = "RSSI: " + (rssi ? rssi + " dBm" : "-");
+
+        let modeText = "STA";
+        if (data.wifiMode === 2) modeText = "AP";
+        else if (data.wifiMode === 3) modeText = "AP+STA";
+        document.getElementById("val-status").textContent = (data.wifiStatus === 3 ? "Connected (" : "Mode (") + modeText + ")";
+      } catch (e) {
+        console.error("Gagal memuat sysinfo", e);
       }
+    }
 
-      async function deleteWiFi(ssid) {
-        if (!confirm("Hapus WiFi: " + ssid + " ?")) return;
+    async function resetPzemEnergy() {
+      if (!confirm("PERINGATAN: Apakah Anda yakin ingin mereset akumulasi hitungan energi (kWh) PZEM menjadi 0?")) return;
+      const statusEl = document.getElementById("pzem-action-status");
+      statusEl.style.color = "var(--text)";
+      statusEl.textContent = "Mereset penghitung energi...";
+      try {
+        const res = await fetch("/pzem/reset", { method: "POST" });
+        const d = await res.json();
+        if (d.status === "ok") {
+          statusEl.style.color = "var(--accent)";
+          statusEl.textContent = "Penghitung energi berhasil direset ke 0 kWh!";
+          loadSysInfo();
+        } else {
+          statusEl.style.color = "var(--danger)";
+          statusEl.textContent = "Gagal mereset.";
+        }
+      } catch (e) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Error komunikasi.";
+      }
+    }
 
-        const params = new URLSearchParams();
-        params.append("ssid", ssid);
+    async function formatFS() {
+      if (!confirm("PERINGATAN: Apakah Anda yakin ingin memformat partisi LittleFS?\nSemua file/gambar lama di partisi penyimpanan akan dihapus permanen.")) return;
+      const statusEl = document.getElementById("sys-action-status");
+      statusEl.style.color = "var(--text)";
+      statusEl.textContent = "Memformat LittleFS... Mohon tunggu.";
+      try {
+        const res = await fetch("/sys/format");
+        const d = await res.json();
+        if (d.status === "ok") {
+          statusEl.style.color = "var(--accent)";
+          statusEl.textContent = "Partisi penyimpanan berhasil diformat bersih!";
+        } else {
+          statusEl.style.color = "var(--danger)";
+          statusEl.textContent = "Gagal memformat: " + (d.message || "");
+        }
+      } catch (e) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Error menghubungi perangkat.";
+      }
+    }
 
+    async function loadWiFiList() {
+      try {
+        const res = await fetch("/wifi/data");
+        const data = await res.json();
+
+        if (!data.wifiList || data.wifiList.length === 0) {
+          wifiListDiv.innerHTML = "<div style='color: var(--text-dim); font-size: 12px;'>Belum ada WiFi tersimpan.</div>";
+          return;
+        }
+
+        wifiListDiv.innerHTML = "";
+        data.wifiList.forEach((w) => {
+          const div = document.createElement("div");
+          div.className = "wifi-item";
+          div.innerHTML = `
+            <div class="info">
+              <strong>${w.ssid}</strong><br>
+              <span>Static: ${w.useStatic ? "Ya" : "Tidak"} | IP: ${w.ip}</span>
+            </div>
+            <button type="button" class="btn-del" onclick="deleteWiFi('${w.ssid}')">Hapus</button>
+          `;
+          wifiListDiv.appendChild(div);
+        });
+      } catch (e) {
+        wifiListDiv.innerHTML = "<div style='color: var(--text-dim); font-size: 12px;'>Gagal memuat daftar WiFi.</div>";
+      }
+    }
+
+    async function deleteWiFi(ssid) {
+      if (!confirm("Hapus konfigurasi WiFi: " + ssid + " ?")) return;
+      const params = new URLSearchParams();
+      params.append("ssid", ssid);
+
+      try {
         const res = await fetch("/wifi/delete", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params,
         });
-
         const d = await res.json();
-
         if (d.status === "ok") {
           loadWiFiList();
         }
+      } catch (e) {
+        alert("Gagal menghapus WiFi.");
       }
+    }
 
-      async function sendData(path) {
-        out.textContent = "Memproses...";
+    async function sendData(path) {
+      out.textContent = "Memproses...";
+      const params = new URLSearchParams();
+      params.append("ssid", document.getElementById("ssid").value);
+      params.append("pass", document.getElementById("pass").value);
 
-        const params = new URLSearchParams();
-        params.append("ssid", document.getElementById("ssid").value);
-        params.append("pass", document.getElementById("pass").value);
+      if (document.getElementById("static").checked) params.append("static", "1");
+      params.append("ip", document.getElementById("ip").value);
+      params.append("gw", document.getElementById("gw").value);
+      params.append("sn", document.getElementById("sn").value);
 
-        if (document.getElementById("static").checked)
-          params.append("static", "1");
+      try {
+        const res = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params,
+        });
+        const d = await res.json();
 
-        params.append("ip", document.getElementById("ip").value);
-        params.append("gw", document.getElementById("gw").value);
-        params.append("sn", document.getElementById("sn").value);
-
-        try {
-          const res = await fetch(path, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: params,
-          });
-
-          const d = await res.json();
-
-          if (path === "/wifi/test") {
-            if (d.ok) {
-              out.textContent = `BERHASIL\nIP: ${d.ip}\nGW: ${d.gw}\nSN: ${d.sn}`;
-              document.getElementById("ip").value = d.ip;
-              document.getElementById("gw").value = d.gw;
-              document.getElementById("sn").value = d.sn;
-              document.getElementById("static").checked = true;
-              toggleStatic();
-            } else {
-              out.textContent = "GAGAL koneksi";
-            }
+        if (path === "/wifi/test") {
+          if (d.ok) {
+            out.textContent = `BERHASIL\nIP: ${d.ip}\nGW: ${d.gw}\nSN: ${d.sn}`;
+            document.getElementById("ip").value = d.ip;
+            document.getElementById("gw").value = d.gw;
+            document.getElementById("sn").value = d.sn;
+            document.getElementById("static").checked = true;
+            toggleStatic();
           } else {
-            out.textContent = d.status === "ok" ? "Tersimpan" : "Gagal";
-
-            loadWiFiList();
+            out.textContent = "GAGAL terkoneksi ke access point.";
           }
-        } catch (e) {
-          out.textContent = "Error koneksi";
+        } else {
+          out.textContent = d.status === "ok" ? "Konfigurasi Tersimpan!" : "Gagal menyimpan.";
+          loadWiFiList();
         }
+      } catch (e) {
+        out.textContent = "Error jaringan.";
       }
+    }
 
-      document.getElementById("btnTest").onclick = () => sendData("/wifi/test");
+    document.getElementById("btnTest").onclick = () => sendData("/wifi/test");
+    document.getElementById("btnSave").onclick = () => sendData("/wifi/add");
 
-      document.getElementById("btnSave").onclick = () => sendData("/wifi/add");
+    // Web OTA Upload
+    document.getElementById("ota-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById("file-input");
+      if (fileInput.files.length === 0) return;
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append("update", file);
 
-      document.getElementById("ota-form").addEventListener("submit", function(e) {
-        e.preventDefault();
-        const fileInput = document.getElementById("file-input");
-        if (fileInput.files.length === 0) return;
-        const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append("update", file);
+      const xhr = new XMLHttpRequest();
+      const prgBar = document.getElementById("prg-bar");
+      const prgFill = document.getElementById("prg-fill");
+      const statusEl = document.getElementById("ota-status");
+      const btn = document.getElementById("btnUpdate");
 
-        const xhr = new XMLHttpRequest();
-        const prgBar = document.getElementById("prg-bar");
-        const prgFill = document.getElementById("prg-fill");
-        const status = document.getElementById("ota-status");
-        const btn = document.getElementById("btnUpdate");
+      prgBar.style.display = "block";
+      statusEl.style.display = "block";
+      prgFill.style.width = "0%";
+      statusEl.textContent = "Memulai pengiriman firmware...";
+      btn.disabled = true;
 
-        prgBar.style.display = "block";
-        prgFill.style.width = "0%";
-        status.innerText = "Memulai upload...";
-        btn.disabled = true;
-
-        xhr.upload.addEventListener("progress", function(e) {
-          if (e.lengthComputable) {
-            const p = Math.round((e.loaded / e.total) * 100);
-            prgFill.style.width = p + "%";
-            status.innerText = "Uploading: " + p + "%";
-          }
-        });
-
-        xhr.addEventListener("load", function() {
-          status.innerText = xhr.responseText;
-          if (xhr.status === 200) {
-            prgFill.style.width = "100%";
-            status.innerText = xhr.responseText + " Silakan refresh halaman setelah ESP32 restart.";
-          } else {
-            btn.disabled = false;
-          }
-        });
-
-        xhr.addEventListener("error", function() {
-          status.innerText = "Upload gagal! Periksa koneksi ke perangkat.";
-          btn.disabled = false;
-        });
-
-        xhr.open("POST", "/update");
-        xhr.send(formData);
+      xhr.upload.addEventListener("progress", function(e) {
+        if (e.lengthComputable) {
+          const p = Math.round((e.loaded / e.total) * 100);
+          prgFill.style.width = p + "%";
+          statusEl.textContent = "Uploading & Flashing: " + p + "%";
+        }
       });
 
-      loadWiFiList();
-    </script>
-  </body>
+      xhr.addEventListener("load", function() {
+        statusEl.textContent = xhr.responseText;
+        if (xhr.status === 200) {
+          prgFill.style.width = "100%";
+          statusEl.textContent = xhr.responseText + " Silakan tunggu perangkat reboot, lalu refresh halaman.";
+        } else {
+          btn.disabled = false;
+        }
+      });
+
+      xhr.addEventListener("error", function() {
+        statusEl.textContent = "Upload gagal! Periksa koneksi ke perangkat.";
+        btn.disabled = false;
+      });
+
+      xhr.open("POST", "/update");
+      xhr.send(formData);
+    });
+
+    // Inisialisasi data
+    loadSysInfo();
+    loadWiFiList();
+    setInterval(loadSysInfo, 3000);
+  </script>
+</body>
 </html>
 )rawliteral";
+
+#endif // INDEX_HTML_H

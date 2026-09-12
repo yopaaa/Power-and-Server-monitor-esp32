@@ -5,16 +5,20 @@
 #include "LCD.h"
 #include "Lcd_api.h"
 #include "Devices.h"
+#include "PZEMManager.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 
 #endif
+
+static unsigned long lastPzemRead = 0;
 
 void setup()
 {
     Serial.begin(115200);
     lcdInit();
     initDeviceID();
+    initPZEM();
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -30,10 +34,7 @@ void setup()
     setupWeb();
     initUDPDiscovery();
 
-    lcdClear(TFT_BLACK);
-    lcdPrintCenterX("Power Meter", 1, TFT_YELLOW, 2);
-    lcdPrintCenterX("WiFi Connected", 3, TFT_GREEN, 2);
-    lcdPrintCenterX(WiFi.localIP().toString(), 4, TFT_CYAN, 2);
+    drawPowerMeterFrame();
 }
 
 void loop()
@@ -41,4 +42,21 @@ void loop()
     server.handleClient();
     handleWebReboot();
     handleUDPDiscovery();
+
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastPzemRead >= 1000) {
+        lastPzemRead = currentMillis;
+        readPZEM();
+
+        String statusInfo = "";
+        if (WiFi.status() == WL_CONNECTED) {
+            statusInfo = WiFi.localIP().toString();
+        } else if (WiFi.getMode() == WIFI_AP) {
+            statusInfo = "AP: " + WiFi.softAPIP().toString();
+        } else {
+            statusInfo = "No WiFi";
+        }
+
+        updatePowerMeterDisplay(getPZEMMetrics(), statusInfo);
+    }
 }

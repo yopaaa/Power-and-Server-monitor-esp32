@@ -7,6 +7,11 @@ GET http://{{host}}/sys/info
 
 ###
 
+### Format Filesystem (Hapus data gambar lama di LittleFS)
+GET http://{{host}}/sys/format
+
+###
+
 ### Web OTA Firmware Upload (Multipart POST)
 # POST http://{{host}}/update
 # Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
