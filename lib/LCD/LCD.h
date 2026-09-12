@@ -3,6 +3,25 @@
 
 #include <TFT_eSPI.h>
 #include "PZEMManager.h"
+#include "ServerMonitor.h"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Display Page State Machine
+// ─────────────────────────────────────────────────────────────────────────────
+enum DisplayPage {
+    PAGE_POWER_METER = 0,
+    PAGE_SERVER_MONITOR = 1
+};
+
+void setDisplayPage(DisplayPage page);
+DisplayPage getDisplayPage();
+void cycleDisplayPage();
+
+// Carousel Loop: Power Meter -> Server 1 -> Server 2 -> Server 3 -> Power Meter...
+void cycleNextScreen();
+void cyclePrevScreen();
+int getScreenIndex();
+void setScreenIndex(int idx);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design System - High-Contrast Color Hunt Palette:
@@ -34,6 +53,10 @@ bool lcdIsInverted();
 // Power Meter Dashboard
 void drawPowerMeterFrame();
 void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo = "");
+
+// Server Monitor Dashboard (Beszel)
+void drawServerMonitorFrame(const ServerMetrics &srv, int serverIdx, int totalServers);
+void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int totalServers);
 
 // OTA Update Screens
 void drawOtaStart();

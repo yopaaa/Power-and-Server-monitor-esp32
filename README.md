@@ -49,6 +49,21 @@ Project Power Meter dan Server Monitor berbasis ESP32 dengan sensor PZEM dan lay
 
 ---
 
+### 👆 3. Sensor Sentuh TTP223 (Capacitive Touch Switch)
+| Pin TTP223 | Pin ESP32 (GPIO) | Keterangan |
+|------------|------------------|------------|
+| **VCC** | **3.3V** | Catu daya sensor (3.3V dari ESP32) |
+| **GND** | **GND** | Ground bersama |
+| **I/O (SIG)** | **GPIO 4** | Sinyal digital sentuh (Active-HIGH) |
+
+> [!TIP]
+> **Cara Kerja Carousel Navigasi Layar (Looping)**:
+> Setiap kali sensor TTP223 disentuh 1 kali (atau menekan tombol BOOT GPIO 0), tampilan layar berpindah secara berurutan:
+> **Power Meter** $\rightarrow$ **Server 1** $\rightarrow$ **Server 2** $\rightarrow$ **Server 3** $\rightarrow$ **Power Meter** $\rightarrow$ *(loop terus-menerus)*.
+
+
+---
+
 ## 📶 WiFi API
 | Endpoint | Metode | Parameter | Keterangan |
 |----------|--------|-----------|------------|
@@ -68,6 +83,13 @@ curl -X POST http://{{host}}/wifi/add \
 ## 🖥️ LCD Display API
 | Endpoint | Metode | Parameter | Keterangan |
 |----------|--------|-----------|------------|
-| `/lcd/backlight` | GET | `value` (0 - 255) | Atur kecerahan backlight LCD |
+| `/lcd/brightness` | GET | `val` (0 - 255) | Atur kecerahan backlight LCD via PWM |
+| `/lcd/invert` | GET | - | Toggle invert warna layar LCD (untuk penyesuaian tipe panel) |
 | `/lcd/clear` | GET | - | Bersihkan layar LCD |
+
+---
+
+## 📜 Coding Rules & Architectural Guidelines
+Untuk standar penulisan kode, alokasi pin, zero-flicker LCD, palet warna kontras tinggi, dan aturan loop non-blocking, silakan baca [CODING_RULES.md](file:///home/yopa/Documents/PlatformIO/Projects/Power-meter/CODING_RULES.md).
+
 

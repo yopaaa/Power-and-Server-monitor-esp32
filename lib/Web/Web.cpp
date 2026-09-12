@@ -5,6 +5,7 @@
 #include "index_html.h"
 #include "LCD.h"
 #include "PZEMManager.h"
+#include "ServerMonitor.h"
 #include <Update.h>
 #include <LittleFS.h>
 
@@ -145,6 +146,62 @@ void setupWeb()
         } else {
             server.send(400, "application/json", "{\"error\":\"Missing val param (0-255)\"}");
         }
+    });
+
+    server.on("/lcd/page", HTTP_GET, []() {
+        if (server.hasArg("val")) {
+            String val = server.arg("val");
+            if (val == "server") {
+                setDisplayPage(PAGE_SERVER_MONITOR);
+            } else if (val == "power") {
+                setDisplayPage(PAGE_POWER_METER);
+            }
+        } else {
+            cycleDisplayPage();
+        }
+        server.send(200, "application/json", String("{\"page\":\"") + (getDisplayPage() == PAGE_SERVER_MONITOR ? "server" : "power") + "\"}");
+    });
+
+    server.on("/lcd/next", HTTP_GET, []() {
+        cycleNextScreen();
+        int idx = getScreenIndex();
+        String name = (idx == 0) ? "Power Meter" : getCurrentServer().name;
+        server.send(200, "application/json", "{\"screenIndex\":" + String(idx) + ",\"name\":\"" + name + "\"}");
+    });
+
+    server.on("/lcd/prev", HTTP_GET, []() {
+        cyclePrevScreen();
+        int idx = getScreenIndex();
+        String name = (idx == 0) ? "Power Meter" : getCurrentServer().name;
+        server.send(200, "application/json", "{\"screenIndex\":" + String(idx) + ",\"name\":\"" + name + "\"}");
+    });
+
+    server.on("/server/next", HTTP_GET, []() {
+        nextServer();
+        if (getDisplayPage() == PAGE_SERVER_MONITOR) {
+            drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+        }
+        server.send(200, "application/json", String("{\"serverIndex\":") + getCurrentServerIndex() + ",\"name\":\"" + getCurrentServer().name + "\"}");
+    });
+
+    server.on("/server/prev", HTTP_GET, []() {
+        prevServer();
+        if (getDisplayPage() == PAGE_SERVER_MONITOR) {
+            drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+        }
+        server.send(200, "application/json", String("{\"serverIndex\":") + getCurrentServerIndex() + ",\"name\":\"" + getCurrentServer().name + "\"}");
+    });
+
+    server.on("/server/list", HTTP_GET, []() {
+        String json = "{\"servers\":[";
+        for (int i = 0; i < getServerCount(); i++) {
+            if (i > 0) json += ",";
+            selectServer(i);
+            const ServerMetrics &s = getCurrentServer();
+            json += "{\"name\":\"" + s.name + "\",\"host\":\"" + s.host + "\",\"cpu\":" + String(s.cpuPercent, 1) + ",\"temp\":" + String(s.cpuTemp, 0) + ",\"ram\":" + String(s.ramPercent, 1) + ",\"disk\":" + String(s.diskPercent, 1) + "}";
+        }
+        json += "],\"current\":" + String(getCurrentServerIndex()) + "}";
+        server.send(200, "application/json", json);
     });
 
     server.on("/sys/format", HTTP_GET, []() {

@@ -18,6 +18,54 @@ static bool  prevInit = false;
 static String prevStatus = "";
 
 static bool isScreenInverted = false;
+static DisplayPage currentPage = PAGE_SERVER_MONITOR; // Default to Server Monitor as requested
+static int screenIndex = 1; // 0 = Power Meter, 1..N = Server 1..N
+
+void setDisplayPage(DisplayPage page) {
+    currentPage = page;
+    if (currentPage == PAGE_SERVER_MONITOR) {
+        drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+    } else {
+        drawPowerMeterFrame();
+    }
+}
+
+DisplayPage getDisplayPage() {
+    return currentPage;
+}
+
+void cycleDisplayPage() {
+    if (currentPage == PAGE_SERVER_MONITOR) {
+        setDisplayPage(PAGE_POWER_METER);
+    } else {
+        setDisplayPage(PAGE_SERVER_MONITOR);
+    }
+}
+
+int getScreenIndex() {
+    return screenIndex;
+}
+
+void setScreenIndex(int idx) {
+    int totalScreens = 1 + getServerCount();
+    if (totalScreens <= 0) return;
+    screenIndex = (idx % totalScreens + totalScreens) % totalScreens;
+
+    if (screenIndex == 0) {
+        setDisplayPage(PAGE_POWER_METER);
+    } else {
+        selectServer(screenIndex - 1);
+        setDisplayPage(PAGE_SERVER_MONITOR);
+    }
+}
+
+void cycleNextScreen() {
+    setScreenIndex(screenIndex + 1);
+}
+
+void cyclePrevScreen() {
+    setScreenIndex(screenIndex - 1);
+}
 
 void lcdBacklight(bool on) { 
     ledcWrite(ledChannel, on ? 240 : 0); 
@@ -32,7 +80,11 @@ void lcdBacklight(int brightness) {
 void lcdToggleInversion() {
     isScreenInverted = !isScreenInverted;
     tft.invertDisplay(isScreenInverted);
-    drawPowerMeterFrame();
+    if (currentPage == PAGE_SERVER_MONITOR) {
+        drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+    } else {
+        drawPowerMeterFrame();
+    }
 }
 
 bool lcdIsInverted() {
@@ -51,7 +103,11 @@ void lcdInit()
     tft.fillScreen(C_BG);
 
     lcdBacklight(240); // 94% PWM: deep blacks, minimal backlight bleed
-    drawPowerMeterFrame();
+    if (currentPage == PAGE_SERVER_MONITOR) {
+        drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+    } else {
+        drawPowerMeterFrame();
+    }
 }
 
 void lcdClear(uint16_t color) { tft.fillScreen(color); }
@@ -263,6 +319,199 @@ void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo)
     prevConn = m.isConnected;
     prevInit = true;
     tft.setTextPadding(0); // Reset padding
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server Monitor Layout & Display (Beszel Multi-Server)
+// ─────────────────────────────────────────────────────────────────────────────
+static float srvPrevCpu = -999.0f;
+static float srvPrevTemp = -999.0f;
+static float srvPrevRam = -999.0f;
+static float srvPrevDisk = -999.0f;
+static int   srvPrevIdx = -1;
+static int   srvPrevCpuBar = -1;
+static int   srvPrevRamBar = -1;
+static int   srvPrevDiskBar = -1;
+static bool  srvFrameDrawn = false;
+
+void drawServerMonitorFrame(const ServerMetrics &srv, int serverIdx, int totalServers)
+{
+    srvPrevIdx = serverIdx;
+    srvPrevCpu = -999.0f;
+    srvPrevTemp = -999.0f;
+    srvPrevRam = -999.0f;
+    srvPrevDisk = -999.0f;
+    srvPrevCpuBar = -1;
+    srvPrevRamBar = -1;
+    srvPrevDiskBar = -1;
+    srvFrameDrawn = true;
+
+    tft.fillScreen(C_BG);
+
+    // ── Header (Y: 0..26) ──
+    tft.fillRect(0, 0, 240, 3, C_ACCENT); // Top accent stripe
+    tft.setTextSize(2);
+    tft.setTextColor(C_TEXT, C_BG);
+
+    // Truncate name if too long for header
+    String title = srv.name;
+    if (title.length() > 10) title = title.substring(0, 10);
+    tft.drawString(title, 12, 6);
+
+    // Index badge e.g. [1/3]
+    char idxBuf[16];
+    snprintf(idxBuf, sizeof(idxBuf), "[%d/%d]", serverIdx + 1, totalServers > 0 ? totalServers : 1);
+    tft.setTextSize(1);
+    tft.setTextColor(C_ACCENT_HI, C_BG);
+    tft.drawString(idxBuf, 168, 10);
+
+    // Online Status Dot
+    uint16_t dotColor = srv.isOnline ? C_ACCENT_HI : C_ALERT;
+    tft.fillCircle(218, 13, 4, dotColor);
+
+    tft.drawFastHLine(0, 26, 240, C_BORDER);
+
+    // ── Card 1: CPU & Temperature (Y: 30..86, H: 56) ──
+    tft.fillRect(8, 30, 224, 56, C_CARD);
+    tft.drawRect(8, 30, 224, 56, C_BORDER);
+    tft.fillRect(8, 30, 4, 56, C_ACCENT); // Left accent stripe
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawString("CPU LOAD", 18, 34);
+
+    // Progress bar border (X: 18, Y: 72, W: 200, H: 6)
+    tft.drawRect(18, 72, 200, 6, C_BORDER);
+
+    // ── Card 2: Memory / RAM (Y: 92..148, H: 56) ──
+    tft.fillRect(8, 92, 224, 56, C_CARD);
+    tft.drawRect(8, 92, 224, 56, C_BORDER);
+    tft.fillRect(8, 92, 4, 56, C_PRIMARY); // Left accent stripe
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawString("MEMORY (RAM)", 18, 96);
+
+    // Progress bar border (X: 18, Y: 134, W: 200, H: 6)
+    tft.drawRect(18, 134, 200, 6, C_BORDER);
+
+    // ── Card 3: Storage / Disk (Y: 154..210, H: 56) ──
+    tft.fillRect(8, 154, 224, 56, C_CARD);
+    tft.drawRect(8, 154, 224, 56, C_BORDER);
+    tft.fillRect(8, 154, 4, 56, C_PRIMARY); // Left accent stripe
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawString("STORAGE (ROOT)", 18, 158);
+
+    // Progress bar border (X: 18, Y: 196, W: 200, H: 6)
+    tft.drawRect(18, 196, 200, 6, C_BORDER);
+
+    // ── Footer Bar (Y: 216..240) ──
+    tft.drawFastHLine(0, 216, 240, C_BORDER);
+}
+
+void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int totalServers)
+{
+    if (!srvFrameDrawn || serverIdx != srvPrevIdx) {
+        drawServerMonitorFrame(srv, serverIdx, totalServers);
+    }
+
+    char buf[32];
+
+    // 1. CPU Update
+    if (fabs(srv.cpuPercent - srvPrevCpu) >= 0.1f) {
+        srvPrevCpu = srv.cpuPercent;
+        tft.setTextColor(C_VALUE, C_CARD);
+        tft.setTextPadding(105);
+        snprintf(buf, sizeof(buf), "%.1f%%", srv.cpuPercent);
+        tft.drawString(buf, 20, 48, 4);
+
+        // Progress bar
+        int fillW = (int)((srv.cpuPercent / 100.0f) * 196.0f);
+        if (fillW < 0) fillW = 0;
+        if (fillW > 196) fillW = 196;
+        if (fillW != srvPrevCpuBar) {
+            srvPrevCpuBar = fillW;
+            uint16_t barColor = (srv.cpuPercent >= 85.0f) ? C_ALERT : ((srv.cpuPercent >= 70.0f) ? TFT_ORANGE : C_ACCENT_HI);
+            if (fillW > 0) tft.fillRect(20, 74, fillW, 2, barColor);
+            if (196 - fillW > 0) tft.fillRect(20 + fillW, 74, 196 - fillW, 2, C_CARD);
+        }
+    }
+
+    // CPU Temp
+    if (fabs(srv.cpuTemp - srvPrevTemp) >= 0.5f) {
+        srvPrevTemp = srv.cpuTemp;
+        tft.setTextPadding(65);
+        tft.setTextColor(srv.cpuTemp >= 75.0f ? C_ALERT : C_ACCENT_HI, C_CARD);
+        snprintf(buf, sizeof(buf), "%.0f'C", srv.cpuTemp);
+        tft.drawRightString(buf, 222, 34, 1);
+    }
+
+    // 2. RAM Update
+    if (fabs(srv.ramPercent - srvPrevRam) >= 0.1f) {
+        srvPrevRam = srv.ramPercent;
+        tft.setTextColor(C_VALUE, C_CARD);
+        tft.setTextPadding(105);
+        snprintf(buf, sizeof(buf), "%.1f%%", srv.ramPercent);
+        tft.drawString(buf, 20, 110, 4);
+
+        // Subtitle: Used / Total GB
+        tft.setTextPadding(100);
+        tft.setTextColor(C_TEXT, C_CARD);
+        snprintf(buf, sizeof(buf), "%.1f/%.0fGB", srv.ramUsedGB, srv.ramTotalGB);
+        tft.drawRightString(buf, 222, 96, 1);
+
+        // Progress bar
+        int fillW = (int)((srv.ramPercent / 100.0f) * 196.0f);
+        if (fillW < 0) fillW = 0;
+        if (fillW > 196) fillW = 196;
+        if (fillW != srvPrevRamBar) {
+            srvPrevRamBar = fillW;
+            uint16_t barColor = (srv.ramPercent >= 90.0f) ? C_ALERT : C_ACCENT_HI;
+            if (fillW > 0) tft.fillRect(20, 136, fillW, 2, barColor);
+            if (196 - fillW > 0) tft.fillRect(20 + fillW, 136, 196 - fillW, 2, C_CARD);
+        }
+    }
+
+    // 3. Disk Update
+    if (fabs(srv.diskPercent - srvPrevDisk) >= 0.1f) {
+        srvPrevDisk = srv.diskPercent;
+        tft.setTextColor(C_VALUE, C_CARD);
+        tft.setTextPadding(105);
+        snprintf(buf, sizeof(buf), "%.1f%%", srv.diskPercent);
+        tft.drawString(buf, 20, 172, 4);
+
+        // Subtitle: Used / Total
+        tft.setTextPadding(100);
+        tft.setTextColor(C_TEXT, C_CARD);
+        if (srv.diskTotalGB >= 1000.0f) {
+            snprintf(buf, sizeof(buf), "%.1f/%.1fTB", srv.diskUsedGB / 1000.0f, srv.diskTotalGB / 1000.0f);
+        } else {
+            snprintf(buf, sizeof(buf), "%.0f/%.0fGB", srv.diskUsedGB, srv.diskTotalGB);
+        }
+        tft.drawRightString(buf, 222, 158, 1);
+
+        // Progress bar
+        int fillW = (int)((srv.diskPercent / 100.0f) * 196.0f);
+        if (fillW < 0) fillW = 0;
+        if (fillW > 196) fillW = 196;
+        if (fillW != srvPrevDiskBar) {
+            srvPrevDiskBar = fillW;
+            uint16_t barColor = (srv.diskPercent >= 90.0f) ? C_ALERT : C_ACCENT_HI;
+            if (fillW > 0) tft.fillRect(20, 198, fillW, 2, barColor);
+            if (196 - fillW > 0) tft.fillRect(20 + fillW, 198, 196 - fillW, 2, C_CARD);
+        }
+    }
+
+    // 4. Footer Bar: Uptime & Host
+    tft.setTextPadding(110);
+    tft.setTextColor(C_ACCENT_HI, C_BG);
+    snprintf(buf, sizeof(buf), "UP: %s", srv.uptime.c_str());
+    tft.drawString(buf, 10, 224, 1);
+
+    tft.setTextColor(C_TEXT, C_BG);
+    tft.setTextPadding(110);
+    tft.drawRightString(srv.host, 230, 224, 1);
+
+    tft.setTextPadding(0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
