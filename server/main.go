@@ -47,6 +47,33 @@ type Summary struct {
 	TotalRecords    int64   `json:"total_records"`
 }
 
+type MonthSummary struct {
+	YearMonth     string  `json:"year_month"`     // "2026-09"
+	MonthName     string  `json:"month_name"`     // "September 2026"
+	TotalKWh      float64 `json:"total_kwh"`      // 45.2
+	EstimatedCost float64 `json:"estimated_cost"` // 65300
+	PeakPower     float64 `json:"peak_power"`     // 850.5
+	AvgPower      float64 `json:"avg_power"`      // 320.1
+	TotalRecords  int64   `json:"total_records"`
+	IsCurrent     bool    `json:"is_current"`
+}
+
+var idMonths = map[string]string{
+	"01": "Januari", "02": "Februari", "03": "Maret", "04": "April",
+	"05": "Mei", "06": "Juni", "07": "Juli", "08": "Agustus",
+	"09": "September", "10": "Oktober", "11": "November", "12": "Desember",
+}
+
+func formatMonthID(ym string) string {
+	parts := strings.Split(ym, "-")
+	if len(parts) == 2 {
+		if name, ok := idMonths[parts[1]]; ok {
+			return name + " " + parts[0]
+		}
+	}
+	return ym
+}
+
 type AuthConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -124,6 +151,10 @@ func main() {
 	mux.HandleFunc("GET /api/metrics/latest", srv.requireAuth(srv.handleGetLatest))
 	mux.HandleFunc("GET /api/metrics/history", srv.requireAuth(srv.handleGetHistory))
 	mux.HandleFunc("GET /api/metrics/summary", srv.requireAuth(srv.handleGetSummary))
+	mux.HandleFunc("GET /api/metrics/monthly", srv.requireAuth(srv.handleGetMonthly))
+	mux.HandleFunc("GET /api/metrics/recent", srv.requireAuth(srv.handleGetRecent))
+	mux.HandleFunc("DELETE /api/metrics", srv.requireAuth(srv.handleDeleteMetric))
+	mux.HandleFunc("POST /api/metrics/delete", srv.requireAuth(srv.handleDeleteMetric))
 
 	// Web UI
 	webContent, err := fs.Sub(webFS, "web")
@@ -468,7 +499,191 @@ func (s *Server) handleGetSummary(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
+func (s *Server) handleGetMonthly(w http.ResponseWriter, r *http.Request) {
+	currentYM := time.Now().Format("2006-01")
+
+	rows, err := s.db.Query(`
+		SELECT 
+			strftime('%Y-%m', created_at, 'localtime') as ym,
+			COUNT(*),
+			COALESCE(MAX(power), 0),
+			COALESCE(AVG(power), 0),
+			COALESCE(MIN(energy), 0),
+			COALESCE(MAX(energy), 0)
+		FROM metrics 
+		GROUP BY ym 
+		ORDER BY ym DESC 
+		LIMIT 12
+	`)
+	if err != nil {
+		log.Printf("Monthly query error: %v", err)
+		http.Error(w, `{"error":"db query failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	list := make([]MonthSummary, 0)
+	for rows.Next() {
+		var ym string
+		var totalRecords int64
+		var peakPower, avgPower, minEnergy, maxEnergy float64
+
+		if err := rows.Scan(&ym, &totalRecords, &peakPower, &avgPower, &minEnergy, &maxEnergy); err == nil {
+			kwh := 0.0
+			if maxEnergy >= minEnergy {
+				kwh = maxEnergy - minEnergy
+			}
+			cost := kwh * s.plnRate
+
+			list = append(list, MonthSummary{
+				YearMonth:     ym,
+				MonthName:     formatMonthID(ym),
+				TotalKWh:      kwh,
+				EstimatedCost: cost,
+				PeakPower:     peakPower,
+				AvgPower:      avgPower,
+				TotalRecords:  totalRecords,
+				IsCurrent:     ym == currentYM,
+			})
+		}
+	}
+
+	if len(list) == 0 {
+		list = append(list, MonthSummary{
+			YearMonth:     currentYM,
+			MonthName:     formatMonthID(currentYM),
+			TotalKWh:      0,
+			EstimatedCost: 0,
+			PeakPower:     0,
+			AvgPower:      0,
+			TotalRecords:  0,
+			IsCurrent:     true,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
+func (s *Server) handleGetRecent(w http.ResponseWriter, r *http.Request) {
+	limitStr := r.URL.Query().Get("limit")
+	limit := 20
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+		limit = l
+	}
+
+	rows, err := s.db.Query(`
+		SELECT id, voltage, current, power, energy, frequency, pf, strftime('%Y-%m-%dT%H:%M:%SZ', created_at) 
+		FROM metrics 
+		ORDER BY id DESC LIMIT ?
+	`, limit)
+	if err != nil {
+		log.Printf("Recent query error: %v", err)
+		http.Error(w, `{"error":"db query failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	list := make([]Metric, 0)
+	for rows.Next() {
+		var m Metric
+		var timeStr string
+		if err := rows.Scan(&m.ID, &m.Voltage, &m.Current, &m.Power, &m.Energy, &m.Frequency, &m.PF, &timeStr); err == nil {
+			m.CreatedAt = parseDBTime(timeStr)
+			list = append(list, m)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"count": len(list),
+		"data":  list,
+	})
+}
+
+func (s *Server) handleDeleteMetric(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		var body struct {
+			ID int64 `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil && body.ID > 0 {
+			idStr = strconv.FormatInt(body.ID, 10)
+		}
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, `{"error":"id parameter required"}`, http.StatusBadRequest)
+		return
+	}
+
+	res, err := s.db.Exec(`DELETE FROM metrics WHERE id = ?`, id)
+	if err != nil {
+		log.Printf("Delete metric error: %v", err)
+		http.Error(w, `{"error":"failed to delete"}`, http.StatusInternalServerError)
+		return
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		http.Error(w, `{"error":"record not found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":  "success",
+		"message": "record deleted",
+		"id":      id,
+	})
+}
+
 func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
+	monthParam := r.URL.Query().Get("month")
+	if monthParam != "" {
+		downsampleSQL := `
+			SELECT 
+				MIN(id) as id,
+				ROUND(AVG(voltage), 1) as voltage,
+				ROUND(AVG(current), 2) as current,
+				ROUND(AVG(power), 1) as power,
+				ROUND(MAX(energy), 2) as energy,
+				ROUND(AVG(frequency), 1) as frequency,
+				ROUND(AVG(pf), 2) as pf,
+				strftime('%Y-%m-%dT%H:00:00Z', created_at, 'localtime') as created_at
+			FROM metrics 
+			WHERE strftime('%Y-%m', created_at, 'localtime') = ?
+			GROUP BY strftime('%Y-%m-%d %H', created_at, 'localtime')
+			ORDER BY created_at ASC
+		`
+		rows, err := s.db.Query(downsampleSQL, monthParam)
+		if err != nil {
+			log.Printf("Monthly history error: %v", err)
+			http.Error(w, `{"error":"db query failed"}`, http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		list := make([]Metric, 0)
+		for rows.Next() {
+			var m Metric
+			var timeStr string
+			if err := rows.Scan(&m.ID, &m.Voltage, &m.Current, &m.Power, &m.Energy, &m.Frequency, &m.PF, &timeStr); err == nil {
+				m.CreatedAt = parseDBTime(timeStr)
+				list = append(list, m)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"month": monthParam,
+			"count": len(list),
+			"data":  list,
+		})
+		return
+	}
+
 	rangeParam := r.URL.Query().Get("range")
 	if rangeParam == "" {
 		rangeParam = "24h"
@@ -572,7 +787,7 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Auth-Token, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

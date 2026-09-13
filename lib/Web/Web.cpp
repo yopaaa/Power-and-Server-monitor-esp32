@@ -96,6 +96,7 @@ void setupWeb()
     });
 
     server.on("/sys/info", HTTP_GET, []() {
+        addCorsHeaders();
         String json = "{";
 
         uint64_t chipid = ESP.getEfuseMac();
@@ -148,7 +149,7 @@ void setupWeb()
         server.send(200, "application/json", json);
     });
 
-    server.on("/lcd/autocycle", HTTP_POST, []() {
+    auto handleAutocyclePost = []() {
         addCorsHeaders();
         bool enable = false;
         if (server.hasArg("enabled")) {
@@ -169,22 +170,34 @@ void setupWeb()
         JsonDocument doc;
         doc["status"] = "ok";
         doc["enabled"] = isAutoCycleEnabled();
+        doc["autoCycle"] = isAutoCycleEnabled();
         doc["interval"] = getAutoCycleInterval() / 1000;
+        doc["autoCycleInterval"] = getAutoCycleInterval();
         doc["message"] = isAutoCycleEnabled() ? "Rotasi otomatis aktif (tiap 20 detik)" : "Mode manual aktif (lewat tombol)";
         String json;
         serializeJson(doc, json);
         server.send(200, "application/json", json);
-    });
+    };
+
+    server.on("/lcd/autocycle", HTTP_POST, handleAutocyclePost);
+    server.on("/lcd/autocycle/toggle", HTTP_POST, handleAutocyclePost);
+    server.on("/lcd/autocycle/toggle", HTTP_GET, handleAutocyclePost);
 
     server.on("/lcd/autocycle", HTTP_OPTIONS, []() {
         addCorsHeaders();
         server.send(200);
     });
 
-    server.on("/lcd/invert", HTTP_GET, []() {
+    auto handleLcdInvert = []() {
+        addCorsHeaders();
         lcdToggleInversion();
-        server.send(200, "application/json", String("{\"inverted\":") + (lcdIsInverted() ? "true" : "false") + "}");
-    });
+        server.send(200, "application/json", String("{\"status\":\"ok\",\"inverted\":") + (lcdIsInverted() ? "true" : "false") + "}");
+    };
+
+    server.on("/lcd/invert", HTTP_GET, handleLcdInvert);
+    server.on("/lcd/invert", HTTP_POST, handleLcdInvert);
+    server.on("/lcd/invert/toggle", HTTP_GET, handleLcdInvert);
+    server.on("/lcd/invert/toggle", HTTP_POST, handleLcdInvert);
 
     server.on("/lcd/brightness", HTTP_GET, []() {
         if (server.hasArg("val")) {
@@ -432,7 +445,8 @@ void setupWeb()
         }
     });
 
-    server.on("/sys/format", HTTP_GET, []() {
+    auto handleSysFormat = []() {
+        addCorsHeaders();
         Serial.println("[FS] Formatting LittleFS partition...");
         lcdClear(TFT_BLACK);
         lcdPrintCenterX("Formatting FS...", 2, TFT_ORANGE, 2);
@@ -451,7 +465,10 @@ void setupWeb()
             lcdPrintCenterX("Format Failed", 4, TFT_RED, 2);
             server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Failed to format LittleFS\"}");
         }
-    });
+    };
+
+    server.on("/sys/format", HTTP_GET, handleSysFormat);
+    server.on("/sys/format", HTTP_POST, handleSysFormat);
 
     // Custom Web OTA Route
     server.on("/update", HTTP_POST, handleUpdatePost, handleUpdateUpload);

@@ -663,7 +663,7 @@
     function updateAutoCycleUI(enabled, intervalMs) {
       const badge = document.getElementById("badge-autocycle");
       const btn = document.getElementById("btn-toggle-autocycle");
-      const sec = intervalMs ? Math.round(intervalMs / 1000) : 20;
+      const sec = (intervalMs >= 1000) ? Math.round(intervalMs / 1000) : (intervalMs || 20);
 
       if (enabled) {
         badge.textContent = "AUTO (" + sec + "s)";
@@ -680,10 +680,12 @@
       const btn = document.getElementById("btn-toggle-autocycle");
       btn.disabled = true;
       try {
-        const res = await fetch("/lcd/autocycle/toggle", { method: "POST" });
+        const res = await fetch("/lcd/autocycle", { method: "POST" });
         const d = await res.json();
         if (d.status === "ok") {
-          updateAutoCycleUI(d.autoCycle, d.autoCycleInterval);
+          const isEnabled = (typeof d.enabled !== "undefined") ? d.enabled : d.autoCycle;
+          const intervalMs = d.autoCycleInterval || (d.interval ? d.interval * 1000 : 20000);
+          updateAutoCycleUI(isEnabled, intervalMs);
         }
       } catch (e) {
         console.error("Error toggle autocycle", e);
@@ -694,17 +696,21 @@
 
     async function toggleLcdInvert() {
       try {
-        await fetch("/lcd/invert/toggle", { method: "POST" });
-        alert("Warna LCD berhasil dibalik (Invert)!");
+        const res = await fetch("/lcd/invert", { method: "POST" });
+        const d = await res.json();
+        alert("Warna LCD berhasil dibalik (Invert: " + (d.inverted ? "Aktif" : "Normal") + ")!");
       } catch (e) {
-        alert("Error toggle LCD invert");
+        alert("Error toggle LCD invert: " + e.message);
       }
     }
 
     async function loadWiFiList() {
       try {
-        const res = await fetch("/wifi/list");
-        const list = await res.json();
+        let res = await fetch("/wifi/data");
+        if (!res.ok) res = await fetch("/wifi/list");
+        const data = await res.json();
+        const list = (data && data.wifiList) ? data.wifiList : (Array.isArray(data) ? data : []);
+
         if (!list || list.length === 0) {
           wifiListDiv.innerHTML = '<div style="color: var(--text-dim); font-size: 11px;">Belum ada WiFi yang tersimpan.</div>';
           return;
@@ -712,13 +718,15 @@
 
         let html = '';
         list.forEach((item, index) => {
+          const ssidEsc = escapeHtml(item.ssid);
+          const detail = item.useStatic ? ('Static IP: ' + (item.ip || '')) : 'DHCP';
           html += `
             <div class="wifi-item">
               <div>
-                <div class="wifi-name">${escapeHtml(item.ssid)}</div>
-                <div class="wifi-detail">BSSID: ${item.bssid || '-'} &bull; Ch: ${item.channel || '-'}</div>
+                <div class="wifi-name">${ssidEsc}</div>
+                <div class="wifi-detail">${detail}</div>
               </div>
-              <button class="btn-danger btn-micro" onclick="deleteWiFi(${index})">Hapus</button>
+              <button class="btn-danger btn-micro" onclick="deleteWiFi('${ssidEsc}', ${index})">Hapus</button>
             </div>
           `;
         });
@@ -728,10 +736,11 @@
       }
     }
 
-    async function deleteWiFi(index) {
-      if (!confirm("Hapus WiFi ini dari daftar tersimpan?")) return;
+    async function deleteWiFi(ssid, index) {
+      if (!confirm("Hapus WiFi '" + ssid + "' dari daftar tersimpan?")) return;
       try {
         const form = new URLSearchParams();
+        form.append("ssid", ssid);
         form.append("index", index);
         const res = await fetch("/wifi/delete", { method: "POST", body: form });
         const d = await res.json();
@@ -753,7 +762,8 @@
 
       try {
         const res = await fetch("/wifi/scan");
-        const nets = await res.json();
+        const data = await res.json();
+        const nets = (data && data.networks) ? data.networks : (Array.isArray(data) ? data : []);
         sel.innerHTML = '<option value="">-- Pilih WiFi (' + nets.length + ' ditemukan) --</option>';
         nets.forEach(n => {
           const opt = document.createElement("option");

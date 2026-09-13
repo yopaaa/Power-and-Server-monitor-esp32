@@ -32,6 +32,9 @@
             color: #F1F5F9;
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+        }
         .pulse-dot {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
@@ -97,7 +100,7 @@
                             <span id="text-status">Connecting...</span>
                         </span>
                     </h1>
-                    <p class="text-xs text-slate-400">PZEM-004T + ESP32 Live Telemetry</p>
+                    <p class="text-xs text-slate-400">PZEM-004T + ESP32 Live Telemetry (15s push)</p>
                 </div>
             </div>
 
@@ -222,14 +225,36 @@
                 </div>
             </div>
 
+            <!-- ── MONTHLY USAGE SECTION (PENGGUNAAN DAYA PER BULAN) ── -->
+            <div class="space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                            <span>📅</span> Penggunaan Daya per Bulan
+                        </h2>
+                        <p class="text-xs text-slate-400">Klik kartu bulan untuk melihat detail riwayat grafik konsumsi daya pada bulan tersebut</p>
+                    </div>
+                    <button id="btn-reset-month" onclick="resetToRealtime()" class="hidden px-3 py-1.5 rounded-xl bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold hover:bg-cyan-600/30 transition flex items-center gap-1.5 shadow-sm">
+                        <span>↩️</span> Kembali ke Mode Live (24 Jam)
+                    </button>
+                </div>
+
+                <!-- Monthly Cards Container -->
+                <div id="monthly-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div class="col-span-full py-6 text-center text-slate-500 text-xs">Memuat riwayat bulanan...</div>
+                </div>
+            </div>
+
             <!-- Chart Section -->
             <div class="bg-cardbg border border-cardborder rounded-2xl p-5 lg:p-6 space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 class="font-bold text-base text-slate-100 flex items-center gap-2">
-                            <span>📈</span> Riwayat Konsumsi Daya
+                            <span>📈</span>
+                            <span id="chart-title-text">Riwayat Konsumsi Daya</span>
+                            <span id="chart-period-badge" class="text-xs px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">24 Jam</span>
                         </h2>
-                        <p class="text-xs text-slate-400">Visualisasi beban listrik dalam periode waktu</p>
+                        <p class="text-xs text-slate-400" id="chart-subtitle-text">Visualisasi beban listrik dalam periode waktu</p>
                     </div>
                     <div class="flex items-center gap-1 bg-darkbg/80 p-1 rounded-xl border border-cardborder text-xs font-medium self-stretch sm:self-auto justify-center">
                         <button onclick="changeRange('1h')" id="btn-1h" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">1 Jam</button>
@@ -268,7 +293,7 @@
                 </div>
             </div>
 
-            <!-- Latest Records Table -->
+            <!-- Latest Records Table with Delete Action -->
             <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-4">
                 <div class="flex justify-between items-center">
                     <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
@@ -282,17 +307,18 @@
                         <thead class="bg-darkbg/60 text-slate-400 uppercase tracking-wider font-semibold border-b border-cardborder">
                             <tr>
                                 <th class="px-4 py-2.5">Waktu</th>
-                                <th class="px-4 py-2.5">Tegangan (V)</th>
-                                <th class="px-4 py-2.5">Arus (A)</th>
-                                <th class="px-4 py-2.5">Daya (W)</th>
-                                <th class="px-4 py-2.5">Energi (kWh)</th>
+                                <th class="px-4 py-2.5">Tegangan</th>
+                                <th class="px-4 py-2.5">Arus</th>
+                                <th class="px-4 py-2.5">Daya</th>
+                                <th class="px-4 py-2.5">Energi</th>
                                 <th class="px-4 py-2.5">PF</th>
                                 <th class="px-4 py-2.5">Hz</th>
+                                <th class="px-4 py-2.5 text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="table-logs-body" class="divide-y divide-cardborder/40 font-mono">
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -342,6 +368,8 @@
     <!-- Script Logic -->
     <script>
         let currentRange = '24h';
+        let selectedMonth = null;
+        let selectedMonthName = '';
         let refreshTimer = null;
         let refreshInterval = 5000;
         let plnTariff = parseFloat(localStorage.getItem('pln_tariff')) || 1444.70;
@@ -435,7 +463,9 @@
                 initCharts();
             }
             fetchSummary();
+            fetchMonthly();
             fetchHistory();
+            fetchRecentTable();
             setupAutoRefresh();
         }
 
@@ -451,11 +481,20 @@
                 localStorage.setItem('pln_tariff', val);
                 toggleSettingsModal();
                 fetchSummary();
+                fetchMonthly();
             }
         }
 
         function changeRange(range) {
+            selectedMonth = null;
+            selectedMonthName = '';
             currentRange = range;
+
+            document.getElementById('btn-reset-month').classList.add('hidden');
+            document.getElementById('chart-title-text').innerText = 'Riwayat Konsumsi Daya';
+            document.getElementById('chart-period-badge').innerText = range;
+            document.getElementById('chart-subtitle-text').innerText = 'Visualisasi beban listrik dalam periode waktu';
+
             ['1h', '6h', '24h', '7d', '30d'].forEach(r => {
                 const btn = document.getElementById(`btn-${r}`);
                 if (r === range) {
@@ -464,7 +503,33 @@
                     btn.className = "px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white";
                 }
             });
+
+            // Re-render monthly cards to remove highlight
+            fetchMonthly();
             fetchHistory();
+        }
+
+        function selectMonth(ym, name) {
+            selectedMonth = ym;
+            selectedMonthName = name;
+
+            document.getElementById('btn-reset-month').classList.remove('hidden');
+            document.getElementById('chart-title-text').innerText = 'Riwayat Konsumsi Daya - ' + name;
+            document.getElementById('chart-period-badge').innerText = name;
+            document.getElementById('chart-subtitle-text').innerText = 'Menampilkan akumulasi data beban per jam selama bulan ' + name;
+
+            // Clear range buttons active state
+            ['1h', '6h', '24h', '7d', '30d'].forEach(r => {
+                const btn = document.getElementById(`btn-${r}`);
+                btn.className = "px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white";
+            });
+
+            fetchMonthly();
+            fetchHistory();
+        }
+
+        function resetToRealtime() {
+            changeRange('24h');
         }
 
         // Initialize Charts
@@ -676,9 +741,65 @@
             }
         }
 
+        async function fetchMonthly() {
+            try {
+                const res = await fetch('/api/metrics/monthly', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) return;
+                const list = await res.json();
+                const grid = document.getElementById('monthly-cards-grid');
+
+                if (!list || list.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full py-4 text-center text-slate-500 text-xs">Belum ada riwayat data bulanan.</div>';
+                    return;
+                }
+
+                let html = '';
+                list.forEach(item => {
+                    const isSelected = selectedMonth === item.year_month;
+                    const borderClass = isSelected
+                        ? 'border-cyan-400 ring-2 ring-cyan-500/40 bg-slate-800 shadow-lg shadow-cyan-500/20'
+                        : 'border-cardborder hover:border-cyan-500/50 hover:bg-slate-800/60 bg-cardbg';
+
+                    const cost = item.total_kwh * plnTariff;
+
+                    html += `
+                        <div onclick="selectMonth('${item.year_month}', '${item.month_name}')" class="${borderClass} border rounded-2xl p-4 cursor-pointer transition flex flex-col justify-between group relative overflow-hidden">
+                            <div>
+                                <div class="flex items-center justify-between gap-1 mb-2">
+                                    <span class="text-xs font-bold ${isSelected ? 'text-cyan-300' : 'text-slate-200'}">${item.month_name}</span>
+                                    ${item.is_current ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Ini</span>' : ''}
+                                </div>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-xl font-extrabold text-emerald-400">${item.total_kwh.toFixed(1)}</span>
+                                    <span class="text-[11px] font-semibold text-slate-400">kWh</span>
+                                </div>
+                                <div class="text-[11px] font-medium text-emerald-300 mt-1">
+                                    Rp ${Math.round(cost).toLocaleString('id-ID')}
+                                </div>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-cardborder/60 flex items-center justify-between text-[10px] text-slate-400">
+                                <span>Puncak:</span>
+                                <span class="font-bold text-slate-300">${item.peak_power.toFixed(0)} W</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                grid.innerHTML = html;
+            } catch (err) {
+                console.error("fetchMonthly error:", err);
+            }
+        }
+
         async function fetchHistory() {
             try {
-                const res = await fetch(`/api/metrics/history?range=${currentRange}`, {
+                let url = `/api/metrics/history?range=${currentRange}`;
+                if (selectedMonth) {
+                    url = `/api/metrics/history?month=${selectedMonth}`;
+                }
+
+                const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 if (res.status === 401) {
@@ -698,7 +819,9 @@
                 list.forEach(m => {
                     const d = new Date(m.created_at);
                     let label = "";
-                    if (currentRange === '1h' || currentRange === '6h' || currentRange === '24h') {
+                    if (selectedMonth) {
+                        label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    } else if (currentRange === '1h' || currentRange === '6h' || currentRange === '24h') {
                         label = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                     } else {
                         label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit' });
@@ -730,17 +853,28 @@
                     energyChartInstance.update('none');
                 }
 
-                renderTable(list.slice(-10).reverse());
-
             } catch (err) {
                 console.error("fetchHistory error:", err);
+            }
+        }
+
+        async function fetchRecentTable() {
+            try {
+                const res = await fetch('/api/metrics/recent?limit=20', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) return;
+                const json = await res.json();
+                renderTable(json.data || []);
+            } catch (err) {
+                console.error("fetchRecentTable error:", err);
             }
         }
 
         function renderTable(recentItems) {
             const tbody = document.getElementById('table-logs-body');
             if (!recentItems || recentItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td></tr>`;
                 return;
             }
 
@@ -754,17 +888,47 @@
 
                 html += `
                     <tr class="hover:bg-slate-800/40 transition">
-                        <td class="px-4 py-2.5 text-slate-400">${timeFormatted}</td>
-                        <td class="px-4 py-2.5 text-amber-400 font-semibold">${item.voltage.toFixed(1)} V</td>
-                        <td class="px-4 py-2.5 text-emerald-400 font-semibold">${item.current.toFixed(2)} A</td>
-                        <td class="px-4 py-2.5 text-cyan-400 font-bold">${item.power.toFixed(1)} W</td>
-                        <td class="px-4 py-2.5 text-slate-200">${item.energy.toFixed(3)} kWh</td>
-                        <td class="px-4 py-2.5 text-purple-400">${item.pf.toFixed(2)}</td>
-                        <td class="px-4 py-2.5 text-slate-400">${item.frequency.toFixed(1)} Hz</td>
+                        <td class="px-4 py-2.5 text-slate-400 whitespace-nowrap">${timeFormatted}</td>
+                        <td class="px-4 py-2.5 text-amber-400 font-semibold whitespace-nowrap">${item.voltage.toFixed(1)} V</td>
+                        <td class="px-4 py-2.5 text-emerald-400 font-semibold whitespace-nowrap">${item.current.toFixed(2)} A</td>
+                        <td class="px-4 py-2.5 text-cyan-400 font-bold whitespace-nowrap">${item.power.toFixed(1)} W</td>
+                        <td class="px-4 py-2.5 text-slate-200 whitespace-nowrap">${item.energy.toFixed(3)} kWh</td>
+                        <td class="px-4 py-2.5 text-purple-400 whitespace-nowrap">${item.pf.toFixed(2)}</td>
+                        <td class="px-4 py-2.5 text-slate-400 whitespace-nowrap">${item.frequency.toFixed(1)} Hz</td>
+                        <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                            <button onclick="deleteMetric(${item.id})" class="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 transition text-xs font-semibold inline-flex items-center gap-1" title="Hapus record #${item.id}">
+                                <span>🗑️</span>
+                                <span>Hapus</span>
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
+        }
+
+        async function deleteMetric(id) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus rekaman data metrik #${id}?`)) return;
+
+            try {
+                const res = await fetch(`/api/metrics?id=${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!res.ok) {
+                    alert('Gagal menghapus data.');
+                    return;
+                }
+
+                // Refresh all views
+                fetchRecentTable();
+                fetchSummary();
+                fetchMonthly();
+                fetchHistory();
+            } catch (err) {
+                alert('Error menghapus data: ' + err.message);
+            }
         }
 
         function setupAutoRefresh() {
@@ -772,7 +936,11 @@
             if (refreshInterval > 0) {
                 refreshTimer = setInterval(() => {
                     fetchSummary();
-                    fetchHistory();
+                    fetchMonthly();
+                    fetchRecentTable();
+                    if (!selectedMonth) {
+                        fetchHistory();
+                    }
                 }, refreshInterval);
             }
         }

@@ -66,7 +66,9 @@ void setupWifiApi(WebServer &server)
 
         String ssid = server.arg("ssid");
         ssid.trim();
-        String pass = server.hasArg("pass") ? server.arg("pass") : "";
+        String pass = "";
+        if (server.hasArg("pass")) pass = server.arg("pass");
+        else if (server.hasArg("password")) pass = server.arg("password");
         int channel = server.hasArg("channel") ? server.arg("channel").toInt() : 0;
 
         Serial.printf("[WiFi Test] Testing connection to '%s'...\n", ssid.c_str());
@@ -126,10 +128,9 @@ void setupWifiApi(WebServer &server)
         server.send(200, "application/json", json);
     });
 
-    server.on("/wifi/data", HTTP_GET, [&server]() {
+    auto sendWifiData = [&server]() {
         addCorsHeaders(server);
-        String json = "{";
-        json += "\"wifiList\":[";
+        String json = "{\"wifiList\":[";
 
         for (int i = 0; i < wifiCount; i++) {
             json += "{";
@@ -148,9 +149,12 @@ void setupWifiApi(WebServer &server)
         json += "]}";
 
         server.send(200, "application/json", json);
-    });
+    };
 
-    server.on("/wifi/add", HTTP_POST, [&server]() {
+    server.on("/wifi/data", HTTP_GET, sendWifiData);
+    server.on("/wifi/list", HTTP_GET, sendWifiData);
+
+    auto handleWifiAdd = [&server]() {
         addCorsHeaders(server);
         if (!server.hasArg("ssid") || server.arg("ssid").isEmpty()) {
             server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"SSID wajib diisi\"}");
@@ -164,7 +168,9 @@ void setupWifiApi(WebServer &server)
             return;
         }
 
-        String pass = server.hasArg("pass") ? server.arg("pass") : "";
+        String pass = "";
+        if (server.hasArg("pass")) pass = server.arg("pass");
+        else if (server.hasArg("password")) pass = server.arg("password");
 
         bool useStatic = server.hasArg("static");
 
@@ -178,23 +184,32 @@ void setupWifiApi(WebServer &server)
         addOrUpdateWiFi(ssid, pass, useStatic, ip, gw, sn);
 
         server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"WiFi berhasil disimpan\"}");
-    });
+    };
+
+    server.on("/wifi/add", HTTP_POST, handleWifiAdd);
+    server.on("/wifi/save", HTTP_POST, handleWifiAdd);
 
     server.on("/wifi/delete", HTTP_POST, [&server]() {
         addCorsHeaders(server);
-        if (!server.hasArg("ssid") || server.arg("ssid").isEmpty()) {
-            server.send(
-                400, "application/json",
-                "{\"status\":\"error\",\"message\":\"SSID wajib diisi\"}");
+        String targetSsid = "";
+
+        if (server.hasArg("ssid")) {
+            targetSsid = server.arg("ssid");
+        } else if (server.hasArg("index")) {
+            int idx = server.arg("index").toInt();
+            if (idx >= 0 && idx < wifiCount) {
+                targetSsid = wifiList[idx].ssid;
+            }
+        }
+
+        if (targetSsid.isEmpty()) {
+            server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"SSID wajib diisi\"}");
             return;
         }
 
-        String ssid = server.arg("ssid");
-        if (deleteWiFi(ssid))
+        if (deleteWiFi(targetSsid))
             server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"WiFi berhasil dihapus\"}");
         else
-            server.send(
-                404, "application/json",
-                "{\"status\":\"error\",\"message\":\"SSID tidak ditemukan\"}");
+            server.send(404, "application/json", "{\"status\":\"error\",\"message\":\"SSID tidak ditemukan\"}");
     });
 }
