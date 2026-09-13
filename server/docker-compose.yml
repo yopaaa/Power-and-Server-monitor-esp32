@@ -6,12 +6,12 @@ services:
     container_name: power-server
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "9100:9100"
     volumes:
       # Mount folder data lokal host ke dalam container untuk file SQLite
       - ./data:/app/data
     environment:
-      - PORT=8080
+      - PORT=9100
       - DB_PATH=/app/data/power.db
       - PLN_RATE=1444.70   # Tarif PLN per kWh (Rp 1.444,70 untuk R-1/1300-2200VA)
       - TZ=Asia/Jakarta
