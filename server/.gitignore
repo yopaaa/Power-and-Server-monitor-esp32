@@ -1,0 +1,10 @@
+# SQLite Database mount folder
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Go Binaries
+power-server
+server_bin
+*.exe
