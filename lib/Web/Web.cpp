@@ -7,6 +7,7 @@
 #include "PZEMManager.h"
 #include "ServerMonitor.h"
 #include "BeszelClient.h"
+#include "PowerLogger.h"
 #include <Update.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
@@ -304,6 +305,49 @@ void setupWeb()
         doc["status"] = ok ? "ok" : "error";
         doc["message"] = outMsg;
         doc["count"] = getServerCount();
+        String json;
+        serializeJson(doc, json);
+        server.send(ok ? 200 : 400, "application/json", json);
+    });
+
+    // ── Power Logger (Cloud/Server Push) API ──
+    server.on("/api/power-logger/config", HTTP_GET, []() {
+        addCorsHeaders();
+        const PowerLoggerConfig &cfg = getPowerLoggerConfig();
+        JsonDocument doc;
+        doc["endpointUrl"] = cfg.endpointUrl;
+        doc["apiKey"] = cfg.apiKey;
+        doc["intervalSec"] = cfg.intervalSec;
+        doc["isEnabled"] = cfg.isEnabled;
+        doc["lastHttpStatus"] = cfg.lastHttpStatus;
+        doc["lastPushMessage"] = cfg.lastPushMessage;
+        unsigned long now = millis();
+        doc["lastPushAgoSec"] = (cfg.lastPush > 0) ? (int)((now - cfg.lastPush) / 1000) : -1;
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    server.on("/api/power-logger/config", HTTP_POST, []() {
+        addCorsHeaders();
+        String url = server.hasArg("endpointUrl") ? server.arg("endpointUrl") : "";
+        String key = server.hasArg("apiKey") ? server.arg("apiKey") : "";
+        uint32_t interval = server.hasArg("intervalSec") ? server.arg("intervalSec").toInt() : 15;
+        bool enabled = server.hasArg("isEnabled") ? (server.arg("isEnabled") == "1" || server.arg("isEnabled") == "true") : false;
+
+        setPowerLoggerConfig(url, key, interval, enabled);
+        server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Pengaturan Power Logger berhasil disimpan\"}");
+    });
+
+    server.on("/api/power-logger/test", HTTP_POST, []() {
+        addCorsHeaders();
+        String url = server.hasArg("endpointUrl") ? server.arg("endpointUrl") : getPowerLoggerConfig().endpointUrl;
+        String key = server.hasArg("apiKey") ? server.arg("apiKey") : getPowerLoggerConfig().apiKey;
+        String outMsg;
+        bool ok = testPowerLogger(url, key, outMsg);
+        JsonDocument doc;
+        doc["status"] = ok ? "ok" : "error";
+        doc["message"] = outMsg;
         String json;
         serializeJson(doc, json);
         server.send(ok ? 200 : 400, "application/json", json);

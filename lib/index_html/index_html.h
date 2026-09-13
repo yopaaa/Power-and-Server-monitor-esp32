@@ -8,23 +8,26 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <title>Power Meter &amp; System Dashboard</title>
+  <title>Power Meter &amp; System Configuration</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg: #1b211a;
-      --surface: #222a21;
-      --surface-inner: #171c16;
-      --border: #354233;
-      --border-light: #445441;
-      --primary: #628141;
-      --primary-hover: #73964c;
-      --accent: #8bae66;
-      --accent-dim: rgba(139, 174, 102, 0.15);
-      --text: #ebd5ab;
-      --text-dim: #b8a88a;
-      --danger: #9e2a2b;
-      --danger-hover: #c0392b;
+      --bg: #0B1120;
+      --surface: #151F32;
+      --surface-inner: #0F172A;
+      --border: #23324D;
+      --border-light: #334155;
+      --primary: #0284C7;
+      --primary-hover: #0EA5E9;
+      --accent: #06B6D4;
+      --accent-emerald: #10B981;
+      --accent-dim: rgba(6, 182, 212, 0.12);
+      --text: #F1F5F9;
+      --text-dim: #94A3B8;
+      --text-muted: #64748B;
+      --danger: #EF4444;
+      --danger-hover: #DC2626;
+      --warning: #F59E0B;
     }
     * {
       box-sizing: border-box;
@@ -32,313 +35,353 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       padding: 0;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background-color: var(--bg);
       color: var(--text);
-      line-height: 1.5;
-      padding: 16px;
+      line-height: 1.4;
+      padding: 12px 16px;
+      font-size: 13px;
     }
     .wrapper {
-      max-width: 960px;
+      max-width: 1080px;
       margin: 0 auto;
     }
+    
+    /* Top Header */
     header {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 0 20px 0;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
-      margin-bottom: 24px;
-      gap: 12px;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0284C7, #10B981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
     }
     .brand h1 {
-      font-size: 22px;
-      color: var(--text);
-      letter-spacing: 0.5px;
+      font-size: 16px;
       font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.3px;
     }
     .brand p {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--accent);
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       font-weight: 600;
     }
     .badge-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      align-items: center;
       flex-wrap: wrap;
     }
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 20px;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 500;
       background: var(--surface-inner);
       border: 1px solid var(--border);
       color: var(--accent);
     }
     .badge .dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent);
+      background: var(--accent-emerald);
+      box-shadow: 0 0 6px var(--accent-emerald);
     }
+
+    /* ── 1-LINE COMPACT SYSTEM STRIP ── */
+    .sys-strip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+    }
+    .sys-items {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+      color: var(--text-dim);
+    }
+    .sys-item span {
+      color: var(--text-muted);
+      margin-right: 3px;
+    }
+    .sys-item b {
+      color: var(--text);
+      font-weight: 600;
+      font-family: ui-monospace, monospace;
+    }
+    .sys-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-micro {
+      padding: 3px 8px;
+      font-size: 10.5px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface-inner);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-micro:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+    .btn-micro.accent {
+      border-color: rgba(6, 182, 212, 0.4);
+      color: var(--accent);
+    }
+    .btn-micro.danger {
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+    .btn-micro.danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    /* Grid Layout */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 14px;
     }
-    .full-width {
-      grid-column: 1 / -1;
-    }
+
+    /* Cards */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
+      border-radius: 12px;
+      padding: 14px 16px;
       position: relative;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-    .card h2 {
-      font-size: 15px;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
-    }
-    .card h2 .action-link {
-      font-size: 11px;
-      color: var(--text-dim);
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    .card h2 .action-link:hover {
-      color: var(--accent);
-    }
-
-    /* System Stats Grid */
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .stat-box {
-      background: var(--surface-inner);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-    }
-    .stat-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .stat-val {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
-      font-family: ui-monospace, monospace;
-      word-break: break-all;
-    }
-
-    /* Form Inputs */
-    .form-group {
-      margin-bottom: 14px;
-    }
-    label {
-      display: block;
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    input[type="text"],
-    input[type="password"],
-    input[type="file"] {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--surface-inner);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 6px;
-      font-size: 13px;
-      outline: none;
       transition: border-color 0.2s;
     }
-    input[type="text"]:focus,
-    input[type="password"]:focus {
-      border-color: var(--accent);
+    .card:hover {
+      border-color: rgba(6, 182, 212, 0.35);
     }
-    input[type="file"] {
-      cursor: pointer;
-    }
-    .checkbox-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--text);
-      margin-top: 4px;
-    }
-    .hidden {
-      display: none;
-    }
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-    }
-    button {
-      flex: 1;
-      padding: 11px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
+    .card h2 {
+      font-size: 13px;
       font-weight: 700;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    .btn-primary {
-      background: var(--primary);
-      color: var(--text);
-    }
-    .btn-primary:hover {
-      background: var(--primary-hover);
-      color: #fff;
-    }
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--border-light);
       color: var(--accent);
-    }
-    .btn-outline:hover {
-      background: var(--accent-dim);
-      border-color: var(--accent);
-    }
-    .btn-danger {
-      background: var(--danger);
-      color: #fff;
-    }
-    .btn-danger:hover {
-      background: var(--danger-hover);
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* WiFi Item List */
-    .wifi-list {
-      max-height: 280px;
-      overflow-y: auto;
-    }
-    .wifi-item {
-      background: var(--surface-inner);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
+      letter-spacing: 0.3px;
       margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
     }
-    .wifi-item .info {
-      font-size: 12px;
-      line-height: 1.4;
+    .card h2 .action-link {
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 500;
+      text-decoration: none;
     }
-    .wifi-item .info strong {
+    .card h2 .action-link:hover {
       color: var(--accent);
-      font-size: 13px;
     }
-    .wifi-item .info span {
+    .card-desc {
       color: var(--text-dim);
       font-size: 11px;
-    }
-    .btn-del {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: #e74c3c;
-      padding: 6px 12px;
-      font-size: 11px;
-      border-radius: 4px;
-      cursor: pointer;
-      flex: 0;
-    }
-    .btn-del:hover {
-      background: rgba(231, 76, 60, 0.15);
-      border-color: #e74c3c;
+      margin-bottom: 10px;
+      line-height: 1.3;
     }
 
-    /* Progress & Status */
-    .progress-track {
+    /* Form Fields */
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .form-group {
+      margin-bottom: 8px;
+    }
+    label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      letter-spacing: 0.2px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="file"],
+    select {
       width: 100%;
-      height: 12px;
+      padding: 7px 10px;
       background: var(--surface-inner);
       border: 1px solid var(--border);
+      color: var(--text);
       border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    button, .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284C7, #06B6D4);
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+    }
+    .btn-primary:hover {
+      opacity: 0.92;
+    }
+    .btn-outline {
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: var(--danger);
+    }
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Status Messages */
+    .status-msg {
+      background: var(--surface-inner);
+      border-left: 3px solid var(--accent);
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--text);
+      border-radius: 0 6px 6px 0;
+      margin-top: 8px;
+      word-break: break-word;
+    }
+
+    /* Saved WiFi List */
+    .wifi-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 170px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+    }
+    .wifi-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-inner);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+    }
+    .wifi-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wifi-detail {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* OTA Progress Bar */
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--surface-inner);
+      border-radius: 3px;
       overflow: hidden;
-      margin-top: 14px;
+      margin-top: 8px;
       display: none;
     }
     .progress-fill {
       height: 100%;
       width: 0%;
-      background: var(--accent);
-      transition: width 0.15s ease-in-out;
+      background: linear-gradient(90deg, #0284C7, #10B981);
+      transition: width 0.2s;
     }
-    .status-msg {
-      margin-top: 10px;
-      padding: 8px 12px;
-      background: var(--surface-inner);
-      border-left: 3px solid var(--accent);
-      border-radius: 0 4px 4px 0;
-      font-size: 12px;
-      font-family: ui-monospace, monospace;
-      color: var(--text);
-    }
-    pre {
-      background: var(--surface-inner);
-      border: 1px solid var(--border);
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      color: var(--text-dim);
-      white-space: pre-wrap;
-      word-break: break-all;
-      margin-top: 8px;
+
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
+    <!-- Navbar Header -->
     <header>
       <div class="brand">
-        <h1>POWER METER</h1>
-        <p>System &amp; Network Manager</p>
+        <div class="brand-icon">⚡</div>
+        <div>
+          <h1>Power &amp; Server Monitor</h1>
+          <p>ESP32 Config Portal</p>
+        </div>
       </div>
       <div class="badge-bar">
         <div class="badge"><span class="dot"></span> Online</div>
@@ -347,157 +390,162 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </header>
 
+    <!-- ── 1-LINE COMPACT SYSTEM STRIP ── -->
+    <div class="sys-strip">
+      <div class="sys-items">
+        <div class="sys-item"><span>Chip:</span><b id="val-chip">...</b></div>
+        <div class="sys-item"><span>IP:</span><b id="val-ip">...</b></div>
+        <div class="sys-item"><span>Signal:</span><b id="val-rssi">...</b></div>
+        <div class="sys-item"><span>Heap:</span><b id="val-heap">...</b></div>
+        <div class="sys-item"><span>Up:</span><b id="val-uptime">...</b></div>
+        <div class="sys-item"><span>Mode:</span><b id="val-status">...</b></div>
+        <div class="sys-item"><span>Cycle:</span><b id="badge-autocycle">MANUAL</b></div>
+      </div>
+      <div class="sys-actions">
+        <button type="button" class="btn-micro accent" id="btn-toggle-autocycle" onclick="toggleAutoCycle()" title="Ubah rotasi otomatis layar">Auto 20s</button>
+        <button type="button" class="btn-micro" onclick="toggleLcdInvert()" title="Balik kontras warna layar">Invert LCD</button>
+        <button type="button" class="btn-micro danger" onclick="formatFS()" title="Format penyimpanan flash">Format FS</button>
+        <button type="button" class="btn-micro" onclick="loadSysInfo()" title="Segarkan info">🔄</button>
+      </div>
+    </div>
+
+    <!-- Hidden elements required by existing JS logic -->
+    <div style="display:none;">
+      <span id="val-cpu"></span>
+      <span id="val-flash"></span>
+      <span id="val-gw"></span>
+      <span id="desc-autocycle"></span>
+      <span id="sys-action-status"></span>
+    </div>
+
+    <!-- ── 2-COLUMN COMPACT CONFIGURATION GRID ── -->
     <div class="grid">
-      <!-- Card: System Information -->
-      <div class="card full-width">
+
+      <!-- CARD 1: Backend Power Logger (Golang Server) -->
+      <div class="card">
         <h2>
-          <span>Informasi Sistem ESP32</span>
-          <span class="action-link" onclick="loadSysInfo()">Segarkan Info</span>
+          <span>⚡ Backend Power Logger</span>
+          <span class="action-link" onclick="loadPowerLoggerConfig()">Segarkan</span>
         </h2>
-        <div class="stat-grid">
-          <div class="stat-box">
-            <div class="stat-label">Chip ID</div>
-            <div class="stat-val" id="val-chip">Memuat...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">CPU Freq</div>
-            <div class="stat-val" id="val-cpu">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Free Heap</div>
-            <div class="stat-val" id="val-heap">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Flash Size</div>
-            <div class="stat-val" id="val-flash">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Uptime</div>
-            <div class="stat-val" id="val-uptime">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Status WiFi</div>
-            <div class="stat-val" id="val-status">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Local IP</div>
-            <div class="stat-val" id="val-ip">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Gateway</div>
-            <div class="stat-val" id="val-gw">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Signal RSSI</div>
-            <div class="stat-val" id="val-rssi">...</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Web OTA</div>
-            <div class="stat-val" style="color: var(--accent);">READY</div>
-          </div>
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button type="button" class="btn-outline" style="max-width: 250px;" onclick="formatFS()">
-            Hapus Data Gambar (Format FS)
-          </button>
-          <button type="button" class="btn-outline" style="max-width: 200px;" onclick="toggleLcdInvert()">
-            Balik Warna LCD (Invert)
-          </button>
-          <div id="sys-action-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
+        <p class="card-desc">
+          Kirim telemetri PZEM-004T (Volt, Amp, Watt, kWh, PF, Hz) secara periodik ke Backend Golang.
+        </p>
+
+        <div class="form-group">
+          <label>Endpoint URL</label>
+          <input id="logger-url" type="text" placeholder="http://192.168.1.100:8080/api/metrics" />
         </div>
 
-        <!-- Pengaturan Mode Perpindahan Layar LCD (Auto 20s vs Manual) -->
-        <div style="background: var(--surface-inner); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <strong style="font-size: 13px; color: var(--text);">Mode Perpindahan Layar LCD</strong>
-              <span id="badge-autocycle" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; background: rgba(255,255,255,0.08); color: var(--text-dim);">MANUAL</span>
-            </div>
-            <div id="desc-autocycle" style="font-size: 11px; color: var(--text-dim); margin-top: 3px;">
-              Ganti otomatis tiap 20 detik (Power Meter ➔ Server 1 ➔ Server 2 ...) atau manual via sensor sentuh TTP223 / tombol BOOT.
-            </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>API Key (X-API-Key)</label>
+            <input id="logger-key" type="text" placeholder="esp32_secret_token_123" />
           </div>
-          <div>
-            <button type="button" id="btn-toggle-autocycle" class="btn-outline" style="min-width: 150px; padding: 6px 14px; font-size: 12px;" onclick="toggleAutoCycle()">
-              Aktifkan Auto 20s
-            </button>
+          <div class="form-group">
+            <label>Interval (detik)</label>
+            <input id="logger-interval" type="number" min="5" max="300" placeholder="15" />
           </div>
         </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0;">
+          <input type="checkbox" id="logger-enabled" style="width: auto; cursor: pointer;" />
+          <label for="logger-enabled" style="margin: 0; cursor: pointer; font-size: 11.5px; color: var(--text);">
+            Aktifkan Pengiriman Otomatis
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn-outline" id="btnTestLogger" onclick="testPowerLogger()">
+            🔍 Tes Kirim
+          </button>
+          <button type="button" class="btn-primary" id="btnSaveLogger" onclick="savePowerLoggerConfig()">
+            💾 Simpan Pengaturan
+          </button>
+        </div>
+        <div id="logger-status" class="status-msg" style="display: none;"></div>
       </div>
 
-      <!-- Card: Konfigurasi Beszel Hub -->
-      <div class="card full-width">
+      <!-- CARD 2: Beszel Hub (PocketBase Server Monitor) -->
+      <div class="card">
         <h2>
-          <span>Konfigurasi Beszel Hub</span>
+          <span>🖥️ Beszel Hub Server Monitor</span>
           <span class="action-link" onclick="loadBeszelConfig()">Segarkan</span>
         </h2>
-        <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 14px;">
-          Hubungkan ESP32 ke server Beszel Hub (PocketBase) di home server untuk mengambil metrik CPU, RAM, Disk, dan Suhu server secara otomatis.
+        <p class="card-desc">
+          Ambil metrik performa CPU, RAM, Disk, dan Suhu server secara otomatis dari Beszel Hub.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+
+        <div class="form-group">
+          <label>URL Beszel Hub</label>
+          <input id="beszel-url" type="text" placeholder="http://192.168.1.100:8090" />
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
-            <label>URL Beszel Hub</label>
-            <input id="beszel-url" type="text" placeholder="http://192.168.1.100:8090" />
-          </div>
-          <div class="form-group">
-            <label>Email / Username Hub</label>
+            <label>Email / Username</label>
             <input id="beszel-email" type="text" placeholder="admin@example.com" />
           </div>
           <div class="form-group">
-            <label>Password Hub</label>
-            <input id="beszel-pass" type="password" placeholder="Password akun Beszel" />
+            <label>Password</label>
+            <input id="beszel-pass" type="password" placeholder="Password akun" />
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;">
-          <button type="button" class="btn-outline" id="btnTestBeszel" onclick="testBeszelHub()" style="max-width: 220px;">
-            🔍 Tes Koneksi Hub
+        <div class="btn-row">
+          <button type="button" class="btn-outline" id="btnTestBeszel" onclick="testBeszelHub()">
+            🔍 Tes Koneksi
           </button>
-          <button type="button" class="btn-primary" id="btnSaveBeszel" onclick="saveBeszelConfigAndSync()" style="max-width: 280px;">
-            💾 Simpan &amp; Sinkronkan Server
+          <button type="button" class="btn-primary" id="btnSaveBeszel" onclick="saveBeszelConfigAndSync()">
+            💾 Simpan &amp; Sinkronkan
           </button>
         </div>
-        <div id="beszel-status" class="status-msg" style="display: none; margin-top: 12px;"></div>
+        <div id="beszel-status" class="status-msg" style="display: none;"></div>
       </div>
 
-      <!-- Card: WiFi Configuration -->
+      <!-- CARD 3: WiFi Configuration -->
       <div class="card">
         <h2>
-          <span>Konfigurasi WiFi Baru</span>
-          <span class="action-link" id="btnScan" onclick="scanWifiNetworks()" style="font-size: 11px; cursor: pointer;">🔍 Pindai WiFi</span>
+          <span>📶 Konfigurasi WiFi Baru</span>
+          <span class="action-link" id="btnScan" onclick="scanWifiNetworks()">🔍 Pindai WiFi</span>
         </h2>
+
         <div class="form-group">
           <label>Nama WiFi (SSID)</label>
-          <div style="display: flex; gap: 8px;">
-            <input id="ssid" type="text" placeholder="Masukkan SSID atau pilih dari scan" style="flex: 1;" />
-            <select id="wifi-select" onchange="onSelectScannedWifi(this)" style="display: none; max-width: 140px; background: var(--surface-inner); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 6px; font-size: 11px;">
-              <option value="">-- Pilih WiFi --</option>
+          <div style="display: flex; gap: 6px;">
+            <input id="ssid" type="text" placeholder="SSID atau pilih dari hasil scan" style="flex: 1;" />
+            <select id="wifi-select" onchange="onSelectScannedWifi(this)" style="display: none; max-width: 130px; font-size: 11px;">
+              <option value="">-- Hasil Scan --</option>
             </select>
           </div>
           <input id="target-channel" type="hidden" value="0" />
         </div>
+
         <div class="form-group">
           <label>Password</label>
-          <input id="pass" type="password" placeholder="Masukkan Password" />
+          <input id="pass" type="password" placeholder="Password WiFi" />
         </div>
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="static" onchange="toggleStatic()" />
+
+        <div class="form-group" style="margin-bottom: 6px;">
+          <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none;">
+            <input type="checkbox" id="static" onchange="toggleStatic()" style="width: auto;" />
             Gunakan Static IP
           </label>
         </div>
+
         <div id="static_fields" class="hidden">
-          <div class="form-group">
-            <label>IP Address</label>
-            <input id="ip" type="text" value="192.168.1.50" />
-          </div>
-          <div class="form-group">
-            <label>Gateway</label>
-            <input id="gw" type="text" value="192.168.1.1" />
-          </div>
-          <div class="form-group">
-            <label>Subnet Mask</label>
-            <input id="sn" type="text" value="255.255.255.0" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>IP Address</label>
+              <input id="ip" type="text" value="192.168.1.50" />
+            </div>
+            <div class="form-group">
+              <label>Gateway</label>
+              <input id="gw" type="text" value="192.168.1.1" />
+            </div>
+            <div class="form-group">
+              <label>Subnet</label>
+              <input id="sn" type="text" value="255.255.255.0" />
+            </div>
           </div>
         </div>
 
@@ -506,39 +554,37 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <button type="button" class="btn-primary" id="btnSave">Simpan WiFi</button>
         </div>
 
-        <div style="margin-top: 14px;">
-          <label>Status Tes:</label>
-          <pre id="out">Ready</pre>
+        <div style="margin-top: 8px;">
+          <pre id="out" style="background: var(--surface-inner); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: var(--text-dim); white-space: pre-wrap;">Ready</pre>
         </div>
       </div>
 
-      <!-- Card: Saved WiFi List -->
+      <!-- CARD 4: Saved WiFi & Web OTA Update -->
       <div class="card">
-        <h2>WiFi Tersimpan</h2>
+        <h2>
+          <span>🗂️ WiFi Tersimpan &amp; OTA Update</span>
+          <span class="action-link" onclick="loadWiFiList()">Segarkan</span>
+        </h2>
+
         <div class="wifi-list" id="wifiList">
-          <div style="color: var(--text-dim); font-size: 12px;">Memuat data...</div>
+          <div style="color: var(--text-dim); font-size: 11px;">Memuat daftar WiFi...</div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px;">
+          <label>Web OTA Firmware Flash (.bin)</label>
+          <form id="ota-form" style="display: flex; gap: 6px; margin-top: 4px;">
+            <input type="file" id="file-input" name="update" accept=".bin" required style="padding: 4px 8px; font-size: 11px;" />
+            <button type="submit" class="btn-primary" id="btnUpdate" style="white-space: nowrap;">
+              Flash OTA
+            </button>
+          </form>
+          <div class="progress-track" id="prg-bar">
+            <div class="progress-fill" id="prg-fill"></div>
+          </div>
+          <div id="ota-status" class="status-msg" style="display: none;"></div>
         </div>
       </div>
 
-      <!-- Card: Web OTA Firmware Update -->
-      <div class="card full-width">
-        <h2>Web OTA Firmware Update</h2>
-        <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 14px;">
-          Pilih file biner <code>firmware.bin</code> hasil kompilasi PlatformIO untuk melakukan update firmware langsung ke ESP32 secara nirkabel.
-        </p>
-        <form id="ota-form">
-          <div class="form-group">
-            <input type="file" id="file-input" name="update" accept=".bin" required />
-          </div>
-          <button type="submit" class="btn-primary" id="btnUpdate" style="max-width: 250px;">
-            Mulai Flash Firmware
-          </button>
-        </form>
-        <div class="progress-track" id="prg-bar">
-          <div class="progress-fill" id="prg-fill"></div>
-        </div>
-        <div id="ota-status" class="status-msg" style="display: none;"></div>
-      </div>
     </div>
   </div>
 
@@ -559,9 +605,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         const data = await res.json();
         
         document.getElementById("val-chip").textContent = data.chipId || "-";
-        document.getElementById("val-cpu").textContent = data.cpuFreqMHz ? data.cpuFreqMHz + " MHz" : "-";
+        if (document.getElementById("val-cpu")) document.getElementById("val-cpu").textContent = data.cpuFreqMHz ? data.cpuFreqMHz + " MHz" : "-";
         document.getElementById("val-heap").textContent = data.freeHeap ? Math.round(data.freeHeap / 1024) + " KB" : "-";
-        document.getElementById("val-flash").textContent = data.flashSize ? Math.round(data.flashSize / (1024 * 1024)) + " MB" : "-";
+        if (document.getElementById("val-flash")) document.getElementById("val-flash").textContent = data.flashSize ? Math.round(data.flashSize / (1024 * 1024)) + " MB" : "-";
 
         const sec = Math.floor((data.uptimeMs || 0) / 1000);
         const d = Math.floor(sec / 86400);
@@ -575,7 +621,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         document.getElementById("val-uptime").textContent = upStr;
 
         document.getElementById("val-ip").textContent = data.localIP || "-";
-        document.getElementById("val-gw").textContent = data.gateway || "-";
+        if (document.getElementById("val-gw")) document.getElementById("val-gw").textContent = data.gateway || "-";
         document.getElementById("badge-ip").textContent = "IP: " + (data.localIP || "-");
 
         const rssi = data.rssi;
@@ -606,37 +652,33 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     async function formatFS() {
       if (!confirm("PERINGATAN: Apakah Anda yakin ingin memformat partisi LittleFS?\nSemua file/gambar lama di partisi penyimpanan akan dihapus permanen.")) return;
-      const statusEl = document.getElementById("sys-action-status");
-      statusEl.style.color = "var(--text)";
-      statusEl.textContent = "Memformat LittleFS... Mohon tunggu.";
+      alert("Memformat LittleFS... Mohon tunggu sebentar.");
       try {
         const res = await fetch("/sys/format");
         const d = await res.json();
         if (d.status === "ok") {
-          statusEl.style.color = "var(--accent)";
-          statusEl.textContent = "Partisi penyimpanan berhasil diformat bersih!";
+          alert("Partisi penyimpanan berhasil diformat bersih!");
         } else {
-          statusEl.style.color = "var(--danger)";
-          statusEl.textContent = "Gagal memformat: " + (d.message || "");
+          alert("Gagal memformat: " + (d.message || ""));
         }
       } catch (e) {
-        statusEl.style.color = "var(--danger)";
-        statusEl.textContent = "Error menghubungi perangkat.";
+        alert("Error menghubungi perangkat.");
       }
     }
 
-    async function toggleLcdInvert() {
-      const statusEl = document.getElementById("sys-action-status");
-      statusEl.style.color = "var(--text)";
-      statusEl.textContent = "Mengubah mode invert warna LCD...";
-      try {
-        const res = await fetch("/lcd/invert");
-        const d = await res.json();
-        statusEl.style.color = "var(--accent)";
-        statusEl.textContent = "Invert LCD: " + (d.inverted ? "AKTIF" : "NONAKTIF");
-      } catch (e) {
-        statusEl.style.color = "var(--danger)";
-        statusEl.textContent = "Gagal mengubah invert: " + e.message;
+    function updateAutoCycleUI(enabled, intervalMs) {
+      const badge = document.getElementById("badge-autocycle");
+      const btn = document.getElementById("btn-toggle-autocycle");
+      const sec = intervalMs ? Math.round(intervalMs / 1000) : 20;
+
+      if (enabled) {
+        badge.textContent = "AUTO (" + sec + "s)";
+        badge.style.color = "var(--accent-emerald)";
+        btn.textContent = "Matikan Auto";
+      } else {
+        badge.textContent = "MANUAL";
+        badge.style.color = "var(--text-dim)";
+        btn.textContent = "Auto " + sec + "s";
       }
     }
 
@@ -644,225 +686,162 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const btn = document.getElementById("btn-toggle-autocycle");
       btn.disabled = true;
       try {
-        const res = await fetch("/lcd/autocycle", { method: "POST" });
+        const res = await fetch("/lcd/autocycle/toggle", { method: "POST" });
         const d = await res.json();
-        updateAutoCycleUI(d.enabled, d.interval);
+        if (d.status === "ok") {
+          updateAutoCycleUI(d.autoCycle, d.autoCycleInterval);
+        }
       } catch (e) {
-        alert("Gagal mengubah mode rotasi: " + e.message);
+        console.error("Error toggle autocycle", e);
       } finally {
         btn.disabled = false;
       }
     }
 
-    function updateAutoCycleUI(enabled, interval) {
-      const badge = document.getElementById("badge-autocycle");
-      const btn = document.getElementById("btn-toggle-autocycle");
-      const desc = document.getElementById("desc-autocycle");
-      if (!badge || !btn || !desc) return;
-
-      if (enabled) {
-        badge.textContent = `AUTO (${interval || 20}s)`;
-        badge.style.background = "rgba(139, 174, 102, 0.25)";
-        badge.style.color = "var(--accent)";
-        btn.textContent = "Ganti ke Manual (Tombol)";
-        btn.style.borderColor = "var(--accent)";
-        desc.textContent = `Layar berganti otomatis setiap ${interval || 20} detik. Sensor sentuh TTP223 / tombol BOOT tetap aktif untuk ganti instan.`;
-      } else {
-        badge.textContent = "MANUAL (Tombol)";
-        badge.style.background = "rgba(255, 255, 255, 0.08)";
-        badge.style.color = "var(--text-dim)";
-        btn.textContent = "Aktifkan Auto 20s";
-        btn.style.borderColor = "var(--border)";
-        desc.textContent = "Layar hanya berganti saat sensor sentuh TTP223 (GPIO 4) disentuh atau tombol BOOT ditekan.";
+    async function toggleLcdInvert() {
+      try {
+        await fetch("/lcd/invert/toggle", { method: "POST" });
+        alert("Warna LCD berhasil dibalik (Invert)!");
+      } catch (e) {
+        alert("Error toggle LCD invert");
       }
     }
 
     async function loadWiFiList() {
       try {
-        const res = await fetch("/wifi/data");
-        const data = await res.json();
-
-        if (!data.wifiList || data.wifiList.length === 0) {
-          wifiListDiv.innerHTML = "<div style='color: var(--text-dim); font-size: 12px;'>Belum ada WiFi tersimpan.</div>";
+        const res = await fetch("/wifi/list");
+        const list = await res.json();
+        if (!list || list.length === 0) {
+          wifiListDiv.innerHTML = '<div style="color: var(--text-dim); font-size: 11px;">Belum ada WiFi yang tersimpan.</div>';
           return;
         }
 
-        wifiListDiv.innerHTML = "";
-        data.wifiList.forEach((w) => {
-          const div = document.createElement("div");
-          div.className = "wifi-item";
-          div.innerHTML = `
-            <div class="info">
-              <strong>${w.ssid}</strong><br>
-              <span>Static: ${w.useStatic ? "Ya" : "Tidak"} | IP: ${w.ip}</span>
+        let html = '';
+        list.forEach((item, index) => {
+          html += `
+            <div class="wifi-item">
+              <div>
+                <div class="wifi-name">${escapeHtml(item.ssid)}</div>
+                <div class="wifi-detail">BSSID: ${item.bssid || '-'} &bull; Ch: ${item.channel || '-'}</div>
+              </div>
+              <button class="btn-danger btn-micro" onclick="deleteWiFi(${index})">Hapus</button>
             </div>
-            <button type="button" class="btn-del" onclick="deleteWiFi('${w.ssid}')">Hapus</button>
           `;
-          wifiListDiv.appendChild(div);
         });
+        wifiListDiv.innerHTML = html;
       } catch (e) {
-        wifiListDiv.innerHTML = "<div style='color: var(--text-dim); font-size: 12px;'>Gagal memuat daftar WiFi.</div>";
+        wifiListDiv.innerHTML = '<div style="color: var(--danger); font-size: 11px;">Gagal memuat daftar WiFi.</div>';
       }
     }
 
-    async function deleteWiFi(ssid) {
-      if (!confirm("Hapus konfigurasi WiFi: " + ssid + " ?")) return;
-      const params = new URLSearchParams();
-      params.append("ssid", ssid);
-
+    async function deleteWiFi(index) {
+      if (!confirm("Hapus WiFi ini dari daftar tersimpan?")) return;
       try {
-        const res = await fetch("/wifi/delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: params,
-        });
+        const form = new URLSearchParams();
+        form.append("index", index);
+        const res = await fetch("/wifi/delete", { method: "POST", body: form });
         const d = await res.json();
         if (d.status === "ok") {
           loadWiFiList();
+        } else {
+          alert("Gagal menghapus WiFi: " + (d.message || ""));
         }
       } catch (e) {
-        alert("Gagal menghapus WiFi.");
+        alert("Error menghapus WiFi.");
       }
     }
 
     async function scanWifiNetworks() {
-      const btnScan = document.getElementById("btnScan");
+      const scanBtn = document.getElementById("btnScan");
       const sel = document.getElementById("wifi-select");
-      btnScan.textContent = "⏳ Memindai...";
+      scanBtn.textContent = "Memindai...";
+      scanBtn.style.pointerEvents = "none";
+
       try {
         const res = await fetch("/wifi/scan");
-        const data = await res.json();
-        sel.innerHTML = '<option value="">-- Pilih WiFi --</option>';
-        if (data.networks && data.networks.length > 0) {
-          data.networks.forEach(n => {
-            if (n.ssid) {
-              const opt = document.createElement("option");
-              opt.value = n.ssid;
-              opt.dataset.channel = n.channel || 0;
-              opt.textContent = `${n.ssid} (${n.rssi} dBm)`;
-              sel.appendChild(opt);
-            }
-          });
-          sel.style.display = "block";
-          btnScan.textContent = `✓ ${data.networks.length} WiFi Ditemukan`;
-        } else {
-          btnScan.textContent = "Tidak ada WiFi ditemukan";
-        }
+        const nets = await res.json();
+        sel.innerHTML = '<option value="">-- Pilih WiFi (' + nets.length + ' ditemukan) --</option>';
+        nets.forEach(n => {
+          const opt = document.createElement("option");
+          opt.value = n.ssid;
+          opt.textContent = n.ssid + " (" + n.rssi + " dBm)";
+          opt.dataset.channel = n.channel;
+          sel.appendChild(opt);
+        });
+        sel.style.display = "block";
       } catch (e) {
-        btnScan.textContent = "Gagal memindai";
-      }
-      setTimeout(() => { btnScan.textContent = "🔍 Pindai WiFi"; }, 4000);
-    }
-
-    function onSelectScannedWifi(el) {
-      const selected = el.options[el.selectedIndex];
-      if (selected && selected.value) {
-        document.getElementById("ssid").value = selected.value;
-        document.getElementById("target-channel").value = selected.dataset.channel || 0;
-        document.getElementById("pass").focus();
+        alert("Gagal memindai WiFi");
+      } finally {
+        scanBtn.textContent = "🔍 Pindai WiFi";
+        scanBtn.style.pointerEvents = "auto";
       }
     }
 
-    async function sendData(path) {
+    function onSelectScannedWifi(sel) {
+      const selected = sel.options[sel.selectedIndex];
+      if (!selected.value) return;
+      document.getElementById("ssid").value = selected.value;
+      document.getElementById("target-channel").value = selected.dataset.channel || "0";
+      document.getElementById("pass").focus();
+    }
+
+    document.getElementById("btnTest").addEventListener("click", async () => {
       const ssid = document.getElementById("ssid").value.trim();
       const pass = document.getElementById("pass").value;
+      if (!ssid) return alert("SSID tidak boleh kosong");
 
-      if (!ssid) {
-        out.style.color = "#e74c3c";
-        out.textContent = "Error: Nama WiFi (SSID) tidak boleh kosong!";
-        return;
-      }
-
-      const btnSave = document.getElementById("btnSave");
-      const btnTest = document.getElementById("btnTest");
-      btnSave.disabled = true;
-      btnTest.disabled = true;
-
-      const isTest = (path === "/wifi/test");
-      out.style.color = "var(--text-dim)";
-      out.textContent = isTest ? "Mencoba koneksi ke WiFi & mengambil IP DHCP (maks 10 detik)..." : "Menyimpan konfigurasi WiFi...";
-
-      const params = new URLSearchParams();
-      params.append("ssid", ssid);
-      params.append("pass", pass);
-
-      if (isTest) {
-        const ch = document.getElementById("target-channel").value;
-        if (ch && ch !== "0") params.append("channel", ch);
-      }
-
-      if (document.getElementById("static").checked) params.append("static", "1");
-      params.append("ip", document.getElementById("ip").value.trim());
-      params.append("gw", document.getElementById("gw").value.trim());
-      params.append("sn", document.getElementById("sn").value.trim());
-
-      const controller = new AbortController();
-      const timeoutMs = isTest ? 15000 : 8000;
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      out.textContent = "Mencoba tes koneksi ke " + ssid + "...";
+      const form = new URLSearchParams();
+      form.append("ssid", ssid);
+      form.append("password", pass);
 
       try {
-        const res = await fetch(path, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: params,
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
+        const res = await fetch("/wifi/test", { method: "POST", body: form });
         const d = await res.json();
-
-        if (isTest) {
-          if (d.ok) {
-            out.style.color = "var(--accent)";
-            out.textContent = `BERHASIL TERKONEKSI!\nIP     : ${d.ip}\nGateway: ${d.gw}\nSubnet : ${d.sn}\n\n✓ Data IP otomatis disalin ke form Static IP.\nKlik 'Simpan WiFi' untuk menyimpan konfigurasi ini.`;
-            document.getElementById("ip").value = d.ip;
-            document.getElementById("gw").value = d.gw;
-            document.getElementById("sn").value = d.sn;
-            document.getElementById("static").checked = true;
-            toggleStatic();
-          } else {
-            out.style.color = "#e74c3c";
-            out.textContent = "GAGAL: " + (d.message || "Tidak dapat terkoneksi ke access point.");
-          }
-        } else {
-          if (d.status === "ok") {
-            out.style.color = "var(--accent)";
-            out.textContent = "✓ " + (d.message || "Konfigurasi Tersimpan!");
-            document.getElementById("ssid").value = "";
-            document.getElementById("pass").value = "";
-            loadWiFiList();
-          } else {
-            out.style.color = "#e74c3c";
-            out.textContent = "✗ Gagal: " + (d.message || "Gagal menyimpan konfigurasi.");
-          }
-        }
+        out.textContent = d.message || JSON.stringify(d);
       } catch (e) {
-        clearTimeout(timeoutId);
-        out.style.color = "#e74c3c";
-        if (e.name === "AbortError") {
-          out.textContent = "Timeout: ESP32 membutuhkan waktu lebih lama untuk DHCP. Pastikan password benar atau sinyal WiFi cukup kuat.";
-        } else {
-          out.textContent = "Error: " + e.message;
-        }
-      } finally {
-        btnSave.disabled = false;
-        btnTest.disabled = false;
+        out.textContent = "Error: " + e.message;
       }
-    }
+    });
 
-    document.getElementById("btnTest").onclick = () => sendData("/wifi/test");
-    document.getElementById("btnSave").onclick = () => sendData("/wifi/add");
+    document.getElementById("btnSave").addEventListener("click", async () => {
+      const ssid = document.getElementById("ssid").value.trim();
+      const pass = document.getElementById("pass").value;
+      if (!ssid) return alert("SSID tidak boleh kosong");
 
-    // Web OTA Upload
-    document.getElementById("ota-form").addEventListener("submit", function(e) {
+      const form = new URLSearchParams();
+      form.append("ssid", ssid);
+      form.append("password", pass);
+      form.append("channel", document.getElementById("target-channel").value || "0");
+
+      if (document.getElementById("static").checked) {
+        form.append("static", "1");
+        form.append("ip", document.getElementById("ip").value.trim());
+        form.append("gateway", document.getElementById("gw").value.trim());
+        form.append("subnet", document.getElementById("sn").value.trim());
+      }
+
+      out.textContent = "Menyimpan kredensial WiFi...";
+      try {
+        const res = await fetch("/wifi/save", { method: "POST", body: form });
+        const d = await res.json();
+        out.textContent = d.message || "Tersimpan!";
+        loadWiFiList();
+      } catch (e) {
+        out.textContent = "Error: " + e.message;
+      }
+    });
+
+    // OTA Update Form
+    document.getElementById("ota-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const fileInput = document.getElementById("file-input");
-      if (fileInput.files.length === 0) return;
+      if (!fileInput.files.length) return alert("Pilih file firmware.bin!");
+
       const file = fileInput.files[0];
       const formData = new FormData();
       formData.append("update", file);
 
-      const xhr = new XMLHttpRequest();
       const prgBar = document.getElementById("prg-bar");
       const prgFill = document.getElementById("prg-fill");
       const statusEl = document.getElementById("ota-status");
@@ -870,43 +849,38 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
       prgBar.style.display = "block";
       statusEl.style.display = "block";
-      prgFill.style.width = "0%";
-      statusEl.textContent = "Memulai pengiriman firmware...";
+      statusEl.textContent = "Mengunggah firmware... Mohon jangan matikan perangkat.";
       btn.disabled = true;
 
-      xhr.upload.addEventListener("progress", function(e) {
-        if (e.lengthComputable) {
-          const p = Math.round((e.loaded / e.total) * 100);
-          prgFill.style.width = p + "%";
-          statusEl.textContent = "Uploading & Flashing: " + p + "%";
-        }
-      });
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/update");
 
-      xhr.addEventListener("load", function() {
-        statusEl.textContent = xhr.responseText;
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          prgFill.style.width = pct + "%";
+          statusEl.textContent = "Flashing: " + pct + "%...";
+        }
+      };
+
+      xhr.onload = () => {
         if (xhr.status === 200) {
-          prgFill.style.width = "100%";
-          statusEl.textContent = xhr.responseText + " Silakan tunggu perangkat reboot, lalu refresh halaman.";
+          statusEl.textContent = "Flash Berhasil! ESP32 akan restart otomatis dalam beberapa detik...";
         } else {
+          statusEl.textContent = "Flash Gagal: " + xhr.responseText;
           btn.disabled = false;
         }
-      });
+      };
 
-      xhr.addEventListener("error", function() {
-        statusEl.textContent = "Upload gagal! Periksa koneksi ke perangkat.";
+      xhr.onerror = () => {
+        statusEl.textContent = "Koneksi terputus saat flash.";
         btn.disabled = false;
-      });
+      };
 
-      xhr.open("POST", "/update");
       xhr.send(formData);
     });
 
-    // ── Beszel Hub & Server Monitor ──
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
+    // Beszel Hub
     async function loadBeszelConfig() {
       try {
         const res = await fetch('/api/beszel/config');
@@ -926,13 +900,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const btn = document.getElementById('btnTestBeszel');
 
       if (!url || !email) {
-        alert('Mohon isi URL Beszel Hub dan Email/Username terlebih dahulu.');
+        alert('Mohon isi URL Beszel Hub dan Email terlebih dahulu.');
         return;
       }
 
       statusEl.style.display = 'block';
-      statusEl.style.borderLeftColor = 'var(--text-dim)';
-      statusEl.textContent = 'Menguji koneksi ke Beszel Hub... Mohon tunggu.';
+      statusEl.textContent = 'Menguji koneksi ke Beszel Hub...';
       btn.disabled = true;
 
       try {
@@ -943,16 +916,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         const res = await fetch('/api/beszel/test', { method: 'POST', body: form });
         const d = await res.json();
-        if (d.status === 'ok') {
-          statusEl.style.borderLeftColor = 'var(--accent)';
-          statusEl.innerHTML = '<strong>' + escapeHtml(d.message) + '</strong>';
-        } else {
-          statusEl.style.borderLeftColor = '#e74c3c';
-          statusEl.textContent = d.message || 'Gagal terhubung.';
-        }
+        statusEl.innerHTML = '<strong>' + escapeHtml(d.message || '') + '</strong>';
       } catch (e) {
-        statusEl.style.borderLeftColor = '#e74c3c';
-        statusEl.textContent = 'Error koneksi: ' + e.message;
+        statusEl.textContent = 'Error: ' + e.message;
       } finally {
         btn.disabled = false;
       }
@@ -965,14 +931,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const statusEl = document.getElementById('beszel-status');
       const btn = document.getElementById('btnSaveBeszel');
 
-      if (!url || !email) {
-        alert('Mohon isi URL Beszel Hub dan Email/Username.');
-        return;
-      }
+      if (!url || !email) return alert('Mohon isi URL dan Email Beszel.');
 
       statusEl.style.display = 'block';
-      statusEl.style.borderLeftColor = 'var(--accent)';
-      statusEl.textContent = 'Menyimpan konfigurasi dan menyinkronkan server...';
+      statusEl.textContent = 'Menyimpan & sinkronisasi...';
       btn.disabled = true;
 
       try {
@@ -982,179 +944,108 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         form.append('password', pass);
 
         await fetch('/api/beszel/config', { method: 'POST', body: form });
-
         const syncRes = await fetch('/api/beszel/sync', { method: 'POST' });
-        const syncData = await syncRes.json();
-
-        if (syncData.status === 'ok') {
-          statusEl.textContent = syncData.message || 'Sinkronisasi berhasil!';
-          loadServersList();
-        } else {
-          statusEl.style.borderLeftColor = '#e74c3c';
-          statusEl.textContent = syncData.message || 'Gagal sinkronisasi.';
-        }
+        const d = await syncRes.json();
+        statusEl.innerHTML = '<strong>' + escapeHtml(d.message || 'Tersimpan!') + '</strong>';
       } catch (e) {
-        statusEl.style.borderLeftColor = '#e74c3c';
         statusEl.textContent = 'Error: ' + e.message;
       } finally {
         btn.disabled = false;
       }
     }
 
-    let isServersLoading = false;
-    async function loadServersList() {
-      if (isServersLoading) return;
-      isServersLoading = true;
-      const container = document.getElementById('servers-container');
+    // Power Logger
+    async function loadPowerLoggerConfig() {
       try {
-        const res = await fetch('/api/servers');
-        const servers = await res.json();
+        const res = await fetch('/api/power-logger/config');
+        const d = await res.json();
+        if (d.endpointUrl) document.getElementById('logger-url').value = d.endpointUrl;
+        if (d.apiKey) document.getElementById('logger-key').value = d.apiKey;
+        if (d.intervalSec) document.getElementById('logger-interval').value = d.intervalSec;
+        document.getElementById('logger-enabled').checked = !!d.isEnabled;
 
-        if (!servers || servers.length === 0) {
-          container.innerHTML = '<div style="color: var(--text-dim); font-size: 12px;">Belum ada server. Tambahkan manual di bawah atau gunakan sinkronisasi Beszel Hub.</div>';
-          return;
+        if (d.lastHttpStatus !== 0 && d.lastHttpStatus !== undefined) {
+          const statusEl = document.getElementById('logger-status');
+          statusEl.style.display = 'block';
+          statusEl.style.borderLeftColor = (d.lastHttpStatus === 200 || d.lastHttpStatus === 201) ? 'var(--accent-emerald)' : 'var(--danger)';
+          statusEl.innerHTML = 'Status: <strong>' + escapeHtml(d.lastPushMessage || '') + '</strong>' + 
+            (d.lastPushAgoSec >= 0 ? ' (' + d.lastPushAgoSec + 's lalu)' : '');
         }
-
-        let html = '';
-        servers.forEach((s) => {
-          const isOnline = s.isOnline;
-          const statusBadge = isOnline ? 
-            '<span style="color: var(--accent); font-weight: 600;">● Online</span>' : 
-            '<span style="color: #e74c3c; font-weight: 600;">● Offline</span>';
-
-          html += `
-            <div style="background: var(--surface-inner); border: 1px solid var(--border); border-radius: 6px; padding: 14px; position: relative;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                <div>
-                  <strong style="color: var(--accent); font-size: 13px;">${escapeHtml(s.name)}</strong>
-                  <div style="color: var(--text-dim); font-size: 11px;">${escapeHtml(s.host)}</div>
-                </div>
-                <div style="font-size: 11px;">${statusBadge}</div>
-              </div>
-              
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; text-align: center;">
-                <div style="background: rgba(0,0,0,0.25); padding: 6px 4px; border-radius: 4px;">
-                  <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">CPU</div>
-                  <div style="font-size: 12px; font-weight: 600; color: var(--text);">${Number(s.cpu || 0).toFixed(1)}%</div>
-                </div>
-                <div style="background: rgba(0,0,0,0.25); padding: 6px 4px; border-radius: 4px;">
-                  <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">RAM</div>
-                  <div style="font-size: 12px; font-weight: 600; color: var(--text);">${Number(s.ram || 0).toFixed(1)}%</div>
-                </div>
-                <div style="background: rgba(0,0,0,0.25); padding: 6px 4px; border-radius: 4px;">
-                  <div style="font-size: 9px; color: var(--text-dim); text-transform: uppercase;">Disk</div>
-                  <div style="font-size: 12px; font-weight: 600; color: var(--text);">${Number(s.disk || 0).toFixed(1)}%</div>
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-bottom: 8px;">
-                <span>Suhu: ${Number(s.temp || 0).toFixed(0)}°C</span>
-                <span>Up: ${escapeHtml(s.uptime || '-')}</span>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                <button type="button" class="btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="testSingleServer('${escapeHtml(s.host)}', this)">
-                  Tes Koneksi
-                </button>
-                <button type="button" class="btn-del" onclick="deleteServerItem(${s.index})">
-                  Hapus
-                </button>
-              </div>
-              <div class="test-res" style="font-size: 11px; margin-top: 6px; min-height: 14px;"></div>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
       } catch (e) {
-        container.innerHTML = '<div style="color: #e74c3c; font-size: 12px;">Gagal memuat server: ' + e.message + '</div>';
-      } finally {
-        isServersLoading = false;
+        console.error('Gagal memuat config Power Logger', e);
       }
     }
 
-    async function testSingleServer(host, btnEl) {
-      const card = btnEl.closest('div').parentElement;
-      const resEl = card.querySelector('.test-res');
-      const origText = btnEl.textContent;
-      btnEl.textContent = 'Menguji...';
-      btnEl.disabled = true;
-      resEl.textContent = 'Mengecek respons ' + host + '...';
-      resEl.style.color = 'var(--text-dim)';
+    async function testPowerLogger() {
+      const url = document.getElementById('logger-url').value.trim();
+      const key = document.getElementById('logger-key').value.trim();
+      const statusEl = document.getElementById('logger-status');
+      const btn = document.getElementById('btnTestLogger');
+
+      if (!url) return alert('Mohon isi Endpoint URL terlebih dahulu.');
+
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'Mengirim metrik uji coba...';
+      btn.disabled = true;
 
       try {
         const form = new URLSearchParams();
-        form.append('host', host);
-        const res = await fetch('/api/servers/test', { method: 'POST', body: form });
+        form.append('endpointUrl', url);
+        form.append('apiKey', key);
+
+        const res = await fetch('/api/power-logger/test', { method: 'POST', body: form });
         const d = await res.json();
-        if (d.status === 'ok') {
-          resEl.style.color = 'var(--accent)';
-          resEl.textContent = '✓ ' + d.message;
-        } else {
-          resEl.style.color = '#e74c3c';
-          resEl.textContent = '✗ ' + (d.message || 'Koneksi gagal');
-        }
+        statusEl.style.borderLeftColor = d.status === 'ok' ? 'var(--accent-emerald)' : 'var(--danger)';
+        statusEl.innerHTML = '<strong>' + escapeHtml(d.message || '') + '</strong>';
       } catch (e) {
-        resEl.style.color = '#e74c3c';
-        resEl.textContent = '✗ Error: ' + e.message;
-      } finally {
-        btnEl.textContent = origText;
-        btnEl.disabled = false;
-      }
-    }
-
-    async function deleteServerItem(index) {
-      if (!confirm('Apakah Anda yakin ingin menghapus server ini dari monitor?')) return;
-      try {
-        const form = new URLSearchParams();
-        form.append('index', index);
-        const res = await fetch('/api/servers/delete', { method: 'POST', body: form });
-        const d = await res.json();
-        if (d.status === 'ok') {
-          loadServersList();
-        } else {
-          alert('Gagal menghapus: ' + d.message);
-        }
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function addManualServer() {
-      const name = document.getElementById('new-srv-name').value.trim();
-      const host = document.getElementById('new-srv-host').value.trim();
-      const statusEl = document.getElementById('add-srv-status');
-
-      if (!name || !host) {
-        alert('Nama dan Host server wajib diisi.');
-        return;
-      }
-
-      statusEl.textContent = 'Menambahkan...';
-      try {
-        const form = new URLSearchParams();
-        form.append('name', name);
-        form.append('host', host);
-        const res = await fetch('/api/servers/add', { method: 'POST', body: form });
-        const d = await res.json();
-        if (d.status === 'ok') {
-          document.getElementById('new-srv-name').value = '';
-          document.getElementById('new-srv-host').value = '';
-          statusEl.textContent = 'Berhasil ditambahkan!';
-          setTimeout(() => { statusEl.textContent = ''; }, 3000);
-          loadServersList();
-        } else {
-          statusEl.textContent = d.message || 'Gagal';
-        }
-      } catch (e) {
+        statusEl.style.borderLeftColor = 'var(--danger)';
         statusEl.textContent = 'Error: ' + e.message;
+      } finally {
+        btn.disabled = false;
       }
     }
 
-    // Inisialisasi data hanya sekali saat halaman dibuka (tanpa polling agresif)
+    async function savePowerLoggerConfig() {
+      const url = document.getElementById('logger-url').value.trim();
+      const key = document.getElementById('logger-key').value.trim();
+      const interval = document.getElementById('logger-interval').value.trim() || '15';
+      const enabled = document.getElementById('logger-enabled').checked ? '1' : '0';
+      const statusEl = document.getElementById('logger-status');
+      const btn = document.getElementById('btnSaveLogger');
+
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'Menyimpan konfigurasi...';
+      btn.disabled = true;
+
+      try {
+        const form = new URLSearchParams();
+        form.append('endpointUrl', url);
+        form.append('apiKey', key);
+        form.append('intervalSec', interval);
+        form.append('isEnabled', enabled);
+
+        const res = await fetch('/api/power-logger/config', { method: 'POST', body: form });
+        const d = await res.json();
+        statusEl.style.borderLeftColor = 'var(--accent-emerald)';
+        statusEl.textContent = d.message || 'Berhasil disimpan!';
+      } catch (e) {
+        statusEl.style.borderLeftColor = 'var(--danger)';
+        statusEl.textContent = 'Gagal menyimpan: ' + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Init load
     loadSysInfo();
     loadWiFiList();
     loadBeszelConfig();
-    loadServersList();
+    loadPowerLoggerConfig();
   </script>
 </body>
 </html>

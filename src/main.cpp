@@ -8,6 +8,7 @@
 #include "PZEMManager.h"
 #include "ServerMonitor.h"
 #include "BeszelClient.h"
+#include "PowerLogger.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2 
@@ -46,6 +47,7 @@ void setup()
 
     initServerMonitor();                 // Inisialisasi daftar server (Beszel Multi-Server)
     initBeszelClient();                  // Muat konfigurasi Beszel Hub dari LittleFS
+    initPowerLogger();                   // Muat konfigurasi Power Logger dari LittleFS
     initDeviceID();
     updateBootProgress(30, "Initializing Sensors...", "PZEM-004T v3.0");
     initPZEM();
@@ -153,4 +155,7 @@ void loop()
             updatePowerMeterDisplay(getPZEMMetrics(), statusInfo);
         }
     }
+
+    // ── 4. Loop Power Logger (Kirim Data ke Server Golang) ──
+    handlePowerLoggerLoop(getPZEMMetrics());
 }
