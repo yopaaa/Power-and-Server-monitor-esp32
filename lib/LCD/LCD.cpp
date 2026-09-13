@@ -21,8 +21,8 @@ static String prevStatus = "";
 static bool isScreenInverted = false;
 static bool isAutoCycle = false;
 static uint32_t autoCycleIntervalMs = 20000; // 20 detik
-static DisplayPage currentPage = PAGE_SERVER_MONITOR; // Default to Server Monitor as requested
-static int screenIndex = 1; // 0 = Power Meter, 1..N = Server 1..N
+static DisplayPage currentPage = PAGE_POWER_METER; // Default to Power Meter
+static int screenIndex = 0; // 0 = Power Meter, 1..N = Server 1..N
 
 void loadLcdSettings() {
     Preferences prefs;
@@ -142,11 +142,7 @@ void lcdInit()
     tft.fillScreen(C_BG);
 
     lcdBacklight(240); // 94% PWM: deep blacks, minimal backlight bleed
-    if (currentPage == PAGE_SERVER_MONITOR) {
-        drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
-    } else {
-        drawPowerMeterFrame();
-    }
+    drawBootScreen("POWER & SERVER");
 }
 
 void lcdClear(uint16_t color) { tft.fillScreen(color); }
@@ -561,6 +557,135 @@ void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int tot
     tft.drawRightString(srv.host, 230, 224, 1);
 
     tft.setTextPadding(0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot & Loading Screen (Smooth Connecting Animation)
+// ─────────────────────────────────────────────────────────────────────────────
+static int bootPrevPercent = -1;
+
+void drawBootScreen(const String &title)
+{
+    bootPrevPercent = -1;
+    tft.fillScreen(C_BG);
+
+    // ── Top Accent Stripe ──
+    tft.fillRect(0, 0, 240, 3, C_ACCENT_HI);
+
+    // ── Header Section (Y: 10..52) ──
+    tft.setTextSize(1);
+    tft.setTextColor(C_ACCENT, C_BG);
+    tft.drawCentreString("ESP32 SMART SYSTEM", 120, 10, 1);
+
+    tft.setTextSize(1);
+    tft.setTextColor(C_VALUE, C_BG);
+    tft.drawCentreString(title.c_str(), 120, 26, 2);
+
+    tft.drawFastHLine(20, 50, 200, C_BORDER);
+
+    // ── Center Card Container (X: 12, Y: 58, W: 216, H: 124) ──
+    tft.fillRect(12, 58, 216, 124, C_CARD);
+    tft.drawRect(12, 58, 216, 124, C_BORDER);
+    tft.fillRect(12, 58, 4, 124, C_ACCENT_HI); // Accent bar on left
+
+    // Progress bar outline (X: 24, Y: 136, W: 192, H: 10)
+    tft.drawRect(24, 136, 192, 10, C_BORDER);
+
+    // ── Footer Section (Y: 192..236) ──
+    tft.setTextSize(1);
+    tft.setTextColor(C_DIM, C_BG);
+    tft.drawCentreString("Web Portal: http://esp.local", 120, 194, 1);
+    tft.drawCentreString("Touch TTP223 / BOOT to cycle", 120, 210, 1);
+
+    // ── Bottom Accent Stripe ──
+    tft.fillRect(0, 237, 240, 3, C_ACCENT);
+}
+
+void updateBootProgress(int percent, const String &statusText, const String &subText)
+{
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+
+    // 1. Status Headline (Font 2)
+    tft.setTextSize(1);
+    tft.setTextPadding(200);
+    tft.setTextColor(C_VALUE, C_CARD);
+    tft.drawCentreString(statusText.c_str(), 120, 74, 2);
+
+    // 2. Subtext / Details (Font 1)
+    tft.setTextPadding(200);
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawCentreString(subText.c_str(), 120, 104, 1);
+
+    // 3. Progress Bar Fill
+    int barW = 188; // 192 - 4 margin
+    int fillW = (barW * percent) / 100;
+    if (fillW < 0) fillW = 0;
+    if (fillW > barW) fillW = barW;
+
+    if (percent != bootPrevPercent) {
+        bootPrevPercent = percent;
+        if (fillW > 0) {
+            tft.fillRect(26, 138, fillW, 6, C_ACCENT_HI);
+        }
+        if (barW - fillW > 0) {
+            tft.fillRect(26 + fillW, 138, barW - fillW, 6, C_CARD);
+        }
+
+        // Percentage label
+        char pBuf[16];
+        snprintf(pBuf, sizeof(pBuf), "%d%%", percent);
+        tft.setTextPadding(60);
+        tft.setTextColor(C_ACCENT_HI, C_CARD);
+        tft.drawCentreString(pBuf, 120, 154, 1);
+    }
+
+    tft.setTextPadding(0);
+}
+
+void drawApModeScreen(const String &ssid, const String &ip)
+{
+    tft.fillScreen(C_BG);
+
+    // Top Stripe
+    tft.fillRect(0, 0, 240, 3, C_ALERT);
+
+    // Header
+    tft.setTextSize(1);
+    tft.setTextColor(C_ALERT, C_BG);
+    tft.drawCentreString("SETUP MODE ACTIVE", 120, 10, 1);
+
+    tft.setTextColor(C_VALUE, C_BG);
+    tft.drawCentreString("WiFi Disconnected", 120, 26, 2);
+
+    tft.drawFastHLine(20, 50, 200, C_BORDER);
+
+    // Card (X: 12, Y: 58, W: 216, H: 130)
+    tft.fillRect(12, 58, 216, 130, C_CARD);
+    tft.drawRect(12, 58, 216, 130, C_BORDER);
+    tft.fillRect(12, 58, 4, 130, C_ALERT);
+
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawCentreString("Hubungkan HP/PC ke WiFi:", 120, 68, 1);
+
+    tft.setTextColor(C_VALUE, C_CARD);
+    tft.drawCentreString(ssid.c_str(), 120, 84, 2);
+
+    tft.setTextColor(C_TEXT, C_CARD);
+    tft.drawCentreString("Buka browser ke alamat:", 120, 114, 1);
+
+    tft.setTextColor(C_ACCENT_HI, C_CARD);
+    tft.drawCentreString(ip.c_str(), 120, 130, 2);
+
+    tft.setTextColor(C_DIM, C_CARD);
+    tft.drawCentreString("atau http://esp.local", 120, 156, 1);
+
+    // Footer
+    tft.setTextColor(C_TEXT, C_BG);
+    tft.drawCentreString("Atur WiFi & restart perangkat", 120, 204, 1);
+
+    // Bottom Stripe
+    tft.fillRect(0, 237, 240, 3, C_ALERT);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -65,6 +65,11 @@ void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo = ""
 void drawServerMonitorFrame(const ServerMetrics &srv, int serverIdx, int totalServers);
 void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int totalServers);
 
+// Boot & Loading Screens
+void drawBootScreen(const String &title = "POWER & SERVER");
+void updateBootProgress(int percent, const String &statusText, const String &subText = "");
+void drawApModeScreen(const String &ssid, const String &ip);
+
 // OTA Update Screens
 void drawOtaStart();
 void drawOtaProgress(int percent);

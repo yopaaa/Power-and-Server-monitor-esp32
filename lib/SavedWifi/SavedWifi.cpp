@@ -4,37 +4,11 @@
 #include <ArduinoJson.h>
 
 #include <ESPmDNS.h>
-#include <time.h>
 
 WiFiCred wifiList[MAX_WIFI];
 uint8_t wifiCount = 0;
 
 Preferences prefs;
-
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 7 * 3600; // WIB
-const int daylightOffset_sec = 0;
-
-void initNTP()
-{
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-    Serial.println("Waiting NTP...");
-
-    unsigned long start = millis();
-    time_t now = time(nullptr);
-
-    while (now < 100000 && millis() - start < 10000) {
-        delay(200);
-        now = time(nullptr);
-    }
-
-    if (now < 100000) {
-        Serial.println("NTP Failed");
-    } else {
-        Serial.println("NTP Ready");
-    }
-}
 
 void saveWiFiList()
 {
@@ -58,8 +32,6 @@ void loadWiFiList()
 {
    prefs.begin("wifi_store", true); // Read-only mode
     wifiCount = prefs.getUChar("count", 0);
-    
-    if (wifiCount > MAX_WIFI) wifiCount = MAX_WIFI;
 
     for (int i = 0; i < wifiCount; i++) {
         String idx = String(i);
@@ -71,12 +43,12 @@ void loadWiFiList()
         wifiList[i].sn = IPAddress(prefs.getUInt(("sn" + idx).c_str(), 0));
     }
     prefs.end();
-    Serial.println("WiFi list loaded from Preferences");
+    Serial.printf("Loaded %d WiFi from Preferences\n", wifiCount);
 }
 
 int scanWiFi(String found[], int max)
 {
-    Serial.println("Scan WiFi...");
+    Serial.println("Scanning WiFi...");
     int n = WiFi.scanNetworks();
     if (n <= 0) return 0;
 
@@ -94,6 +66,7 @@ int scanWiFi(String found[], int max)
 
 bool connectSavedWiFi()
 {
+    updateBootProgress(45, "Scanning WiFi...", "Searching saved networks");
     String found[10];
     int foundCount = scanWiFi(found, 10);
 
@@ -109,23 +82,28 @@ bool connectSavedWiFi()
                 }
 
                 WiFi.begin(wifiList[i].ssid.c_str(), wifiList[i].pass.c_str());
+                updateBootProgress(60, "Connecting WiFi...", wifiList[i].ssid);
 
                 unsigned long start = millis();
+                int progress = 60;
                 while (millis() - start < 8000) {
                     if (WiFi.status() == WL_CONNECTED) {
                         Serial.println("--------------------------");
                         Serial.println("Connected to: " + wifiList[i].ssid);
-                        Serial.print("RSSI       : ");
                         Serial.print("Current IP  : ");
                         Serial.println(
                             WiFi.localIP()); // Menampilkan IP Address
                         Serial.print("Gateway     : ");
                         Serial.println(WiFi.gatewayIP());
                         Serial.println("--------------------------");
-                        initNTP();
+                        updateBootProgress(90, "WiFi Connected!", WiFi.localIP().toString());
+                        delay(250);
                         return true;
                     }
-                    delay(500);
+                    progress = 60 + ((millis() - start) * 20) / 8000;
+                    if (progress > 80) progress = 80;
+                    updateBootProgress(progress, "Connecting WiFi...", wifiList[i].ssid);
+                    delay(400);
                 }
             }
         }
@@ -202,8 +180,5 @@ void startAP()
         MDNS.addService("http", "tcp", 80);
     }
 
-    lcdClear(TFT_BLACK);
-    lcdPrintCenterX("AP Mode Active", 1, TFT_ORANGE, 2);
-    lcdPrintCenterX("SSID: ESP32-Config", 3, TFT_YELLOW, 2);
-    lcdPrintCenterX(WiFi.softAPIP().toString(), 5, TFT_CYAN, 2);
+    drawApModeScreen("ESP32-Config", WiFi.softAPIP().toString());
 }

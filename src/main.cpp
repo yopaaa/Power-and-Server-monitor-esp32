@@ -41,18 +41,36 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
-    initServerMonitor(); // Inisialisasi daftar server (Beszel Multi-Server)
-    initBeszelClient();  // Muat konfigurasi Beszel Hub dari LittleFS
-    lcdInit();           // Membuka LCD dengan default PAGE_SERVER_MONITOR
+    lcdInit();                           // Inisialisasi layar LCD & tampilkan loading screen awal
+    updateBootProgress(15, "Starting System...", "ESP32 Dev Module");
+
+    initServerMonitor();                 // Inisialisasi daftar server (Beszel Multi-Server)
+    initBeszelClient();                  // Muat konfigurasi Beszel Hub dari LittleFS
     initDeviceID();
+    updateBootProgress(30, "Initializing Sensors...", "PZEM-004T v3.0");
     initPZEM();
 
     loadWiFiList();
     WiFi.mode(WIFI_STA);
 
-    if (!connectSavedWiFi()) {
+    bool wifiOk = connectSavedWiFi();
+    if (!wifiOk) {
         startAP();
+        setupWeb();
+        initUDPDiscovery();
+        // Tetap di layar AP Mode sampai user mengatur WiFi atau menekan tombol navigasi
+        return;
     }
+
+    // Jika WiFi terhubung dan Beszel terkonfigurasi, sinkronkan metrik awal
+    if (getBeszelConfig().isConfigured) {
+        updateBootProgress(95, "Syncing Beszel...", "Fetching server stats");
+        String syncMsg;
+        syncBeszelSystems(syncMsg);
+    }
+
+    updateBootProgress(100, "System Ready!", "Launching Dashboard");
+    delay(400);
 
     setupWeb();
     initUDPDiscovery();

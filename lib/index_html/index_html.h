@@ -460,41 +460,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div id="beszel-status" class="status-msg" style="display: none; margin-top: 12px;"></div>
       </div>
 
-      <!-- Card: Manajemen Daftar Server (Multi-Server) -->
-      <div class="card full-width">
-        <h2>
-          <span>Daftar Server yang Dimonitor</span>
-          <span class="action-link" onclick="loadServersList()">Segarkan List</span>
-        </h2>
-        
-        <div id="servers-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px;">
-          <div style="color: var(--text-dim); font-size: 12px;">Memuat daftar server...</div>
-        </div>
-
-        <!-- Form Tambah Server Manual -->
-        <div style="background: var(--surface-inner); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
-          <h3 style="font-size: 12px; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
-            Tambah Server Manual (Tanpa Beszel Hub)
-          </h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Nama / Judul Server</label>
-              <input id="new-srv-name" type="text" placeholder="Contoh: PROXMOX-01" />
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Host / IP Address</label>
-              <input id="new-srv-host" type="text" placeholder="Contoh: 192.168.1.50" />
-            </div>
-          </div>
-          <div style="display: flex; gap: 10px; margin-top: 12px;">
-            <button type="button" class="btn-primary" onclick="addManualServer()" style="max-width: 200px;">
-              + Tambah Server
-            </button>
-            <div id="add-srv-status" style="font-size: 12px; align-self: center; color: var(--text-dim);"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- Card: WiFi Configuration -->
       <div class="card">
         <h2>
