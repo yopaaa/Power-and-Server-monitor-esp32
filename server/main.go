@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -12,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -44,10 +47,19 @@ type Summary struct {
 	TotalRecords    int64   `json:"total_records"`
 }
 
+type AuthConfig struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	APIKey   string `json:"api_key"`
+}
+
 type Server struct {
-	db      *sql.DB
-	apiKey  string
-	plnRate float64
+	db          *sql.DB
+	authFile    string
+	plnRate     float64
+	authMu      sync.RWMutex
+	cachedAuth  *AuthConfig
+	authModTime time.Time
 }
 
 func parseDBTime(str string) time.Time {
@@ -68,7 +80,6 @@ func parseDBTime(str string) time.Time {
 func main() {
 	port := getEnv("PORT", "8080")
 	dbPath := getEnv("DB_PATH", "./data/power.db")
-	apiKey := getEnv("API_KEY", "")
 	rateStr := getEnv("PLN_RATE", "1444.70")
 
 	plnRate, err := strconv.ParseFloat(rateStr, 64)
@@ -76,13 +87,14 @@ func main() {
 		plnRate = 1444.70
 	}
 
-	// Ensure database directory exists
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Fatalf("Failed to create db dir: %v", err)
+	dataDir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Fatalf("Failed to create data dir: %v", err)
 	}
 
-	// Open SQLite with WAL mode & busy timeout
+	authFile := filepath.Join(dataDir, "auth.json")
+	ensureAuthFile(authFile)
+
 	dsn := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)", dbPath)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -95,18 +107,23 @@ func main() {
 	}
 
 	srv := &Server{
-		db:      db,
-		apiKey:  apiKey,
-		plnRate: plnRate,
+		db:       db,
+		authFile: authFile,
+		plnRate:  plnRate,
 	}
 
 	mux := http.NewServeMux()
 
-	// API Routes
+	// Auth Endpoints (Public)
+	mux.HandleFunc("POST /api/auth/login", srv.handleLogin)
+	mux.HandleFunc("POST /api/auth/logout", srv.handleLogout)
+	mux.HandleFunc("GET /api/auth/check", srv.handleAuthCheck)
+
+	// API Routes (Protected)
 	mux.HandleFunc("POST /api/metrics", srv.handlePostMetrics)
-	mux.HandleFunc("GET /api/metrics/latest", srv.handleGetLatest)
-	mux.HandleFunc("GET /api/metrics/history", srv.handleGetHistory)
-	mux.HandleFunc("GET /api/metrics/summary", srv.handleGetSummary)
+	mux.HandleFunc("GET /api/metrics/latest", srv.requireAuth(srv.handleGetLatest))
+	mux.HandleFunc("GET /api/metrics/history", srv.requireAuth(srv.handleGetHistory))
+	mux.HandleFunc("GET /api/metrics/summary", srv.requireAuth(srv.handleGetSummary))
 
 	// Web UI
 	webContent, err := fs.Sub(webFS, "web")
@@ -116,20 +133,52 @@ func main() {
 	fileServer := http.FileServer(http.FS(webContent))
 	mux.Handle("/", fileServer)
 
-	// Wrap with CORS & logger
 	handler := loggingMiddleware(corsMiddleware(mux))
 
 	log.Printf("⚡ Power Meter Server running on :%s", port)
 	log.Printf("📁 Database: %s", dbPath)
-	if apiKey != "" {
-		log.Printf("🔒 API Key protection enabled")
-	} else {
-		log.Printf("⚠️  No API_KEY configured (open access)")
-	}
+	log.Printf("🔐 Auth Credentials file: %s", authFile)
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func ensureAuthFile(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		defaultAuth := AuthConfig{
+			Username: "admin",
+			Password: "admin123",
+			APIKey:   "esp32_secret_token_123",
+		}
+		data, err := json.MarshalIndent(defaultAuth, "", "  ")
+		if err == nil {
+			_ = os.WriteFile(path, data, 0644)
+			log.Printf("🔑 Created default credentials file at %s (username: admin, password: admin123)", path)
+		}
+	}
+}
+
+func (s *Server) getAuth() AuthConfig {
+	s.authMu.Lock()
+	defer s.authMu.Unlock()
+
+	stat, err := os.Stat(s.authFile)
+	if err == nil && (s.cachedAuth == nil || stat.ModTime().After(s.authModTime)) {
+		data, err := os.ReadFile(s.authFile)
+		if err == nil {
+			var conf AuthConfig
+			if err := json.Unmarshal(data, &conf); err == nil {
+				s.cachedAuth = &conf
+				s.authModTime = stat.ModTime()
+			}
+		}
+	}
+
+	if s.cachedAuth != nil {
+		return *s.cachedAuth
+	}
+	return AuthConfig{Username: "admin", Password: "admin123", APIKey: "esp32_secret_token_123"}
 }
 
 func initDB(db *sql.DB) error {
@@ -145,24 +194,144 @@ func initDB(db *sql.DB) error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE INDEX IF NOT EXISTS idx_metrics_created_at ON metrics(created_at);
+
+	CREATE TABLE IF NOT EXISTS sessions (
+		token TEXT PRIMARY KEY,
+		username TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	_, err := db.Exec(schema)
 	return err
 }
 
-func (s *Server) handlePostMetrics(w http.ResponseWriter, r *http.Request) {
-	if s.apiKey != "" {
-		key := r.Header.Get("X-API-Key")
-		if key == "" {
-			auth := r.Header.Get("Authorization")
-			if strings.HasPrefix(auth, "Bearer ") {
-				key = strings.TrimPrefix(auth, "Bearer ")
-			}
-		}
-		if key != s.apiKey {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+func generateToken() string {
+	b := make([]byte, 24)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+		return
+	}
+
+	auth := s.getAuth()
+	if req.Username != auth.Username || req.Password != auth.Password {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"Username atau password salah"}`))
+		return
+	}
+
+	token := generateToken()
+	_, err := s.db.Exec(`INSERT INTO sessions (token, username, created_at) VALUES (?, ?, datetime('now'))`, token, req.Username)
+	if err != nil {
+		http.Error(w, `{"error":"session creation failed"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":   "success",
+		"token":    token,
+		"username": req.Username,
+	})
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	token := extractToken(r)
+	if token != "" {
+		s.db.Exec(`DELETE FROM sessions WHERE token = ?`, token)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"logged_out"}`))
+}
+
+func (s *Server) handleAuthCheck(w http.ResponseWriter, r *http.Request) {
+	token := extractToken(r)
+	w.Header().Set("Content-Type", "application/json")
+	if token == "" {
+		w.Write([]byte(`{"authenticated":false}`))
+		return
+	}
+
+	var username string
+	err := s.db.QueryRow(`SELECT username FROM sessions WHERE token = ?`, token).Scan(&username)
+	if err != nil {
+		w.Write([]byte(`{"authenticated":false}`))
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"authenticated": true,
+		"username":      username,
+	})
+}
+
+func extractToken(r *http.Request) string {
+	if key := r.Header.Get("X-API-Key"); key != "" {
+		return key
+	}
+	if tok := r.Header.Get("X-Auth-Token"); tok != "" {
+		return tok
+	}
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	return ""
+}
+
+// requireAuth protects Web UI data endpoints (checks session token or ESP32 API Key)
+func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := extractToken(r)
+		if token == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized","authenticated":false}`))
 			return
 		}
+
+		// Check if matches API Key from auth.json
+		auth := s.getAuth()
+		if auth.APIKey != "" && token == auth.APIKey {
+			next(w, r)
+			return
+		}
+
+		// Check if valid session token in database
+		var username string
+		err := s.db.QueryRow(`SELECT username FROM sessions WHERE token = ?`, token).Scan(&username)
+		if err == nil {
+			next(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"unauthorized","authenticated":false}`))
+	}
+}
+
+// handlePostMetrics: Authenticates ESP32 via X-API-Key header (or Bearer token) matching auth.json's api_key
+func (s *Server) handlePostMetrics(w http.ResponseWriter, r *http.Request) {
+	auth := s.getAuth()
+	token := extractToken(r)
+
+	if auth.APIKey != "" && token != auth.APIKey {
+		log.Printf("⚠️ Unauthorized push attempt from %s with token '%s'", r.RemoteAddr, token)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"unauthorized: invalid X-API-Key"}`))
+		return
 	}
 
 	var m struct {
@@ -404,7 +573,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Auth-Token, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return

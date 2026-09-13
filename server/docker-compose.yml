@@ -13,6 +13,6 @@ services:
     environment:
       - PORT=8080
       - DB_PATH=/app/data/power.db
-      - API_KEY=rahasia123 # Kosongkan jika tidak ingin proteksi API Key
       - PLN_RATE=1444.70   # Tarif PLN per kWh (Rp 1.444,70 untuk R-1/1300-2200VA)
       - TZ=Asia/Jakarta
+      # Kredensial web & API Key ESP32 dikonfigurasi melalui file: ./data/auth.json

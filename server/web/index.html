@@ -32,9 +32,6 @@
             color: #F1F5F9;
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        .glow-cyan {
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
-        }
         .pulse-dot {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
@@ -45,261 +42,310 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
-    <!-- Navbar -->
-    <header class="border-b border-cardborder bg-cardbg/80 backdrop-blur-md sticky top-0 z-30 px-4 lg:px-8 py-3.5 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <span class="text-xl">⚡</span>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
-                    Power Meter Monitor
-                    <span id="badge-device" class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
-                        <span id="dot-status" class="w-2 h-2 rounded-full bg-slate-500"></span>
-                        <span id="text-status">Connecting...</span>
-                    </span>
-                </h1>
-                <p class="text-xs text-slate-400">PZEM-004T + ESP32 Live Telemetry</p>
-            </div>
-        </div>
 
-        <div class="flex items-center gap-2.5 sm:gap-4">
-            <!-- Auto Refresh Interval -->
-            <div class="flex items-center gap-2 bg-darkbg/60 border border-cardborder rounded-lg px-2.5 py-1 text-xs text-slate-300">
-                <span class="hidden sm:inline text-slate-400">Update:</span>
-                <select id="select-refresh" class="bg-transparent border-0 outline-none text-cyan-400 cursor-pointer text-xs font-semibold">
-                    <option value="3000" class="bg-cardbg text-slate-200">3s</option>
-                    <option value="5000" selected class="bg-cardbg text-slate-200">5s</option>
-                    <option value="15000" class="bg-cardbg text-slate-200">15s</option>
-                    <option value="30000" class="bg-cardbg text-slate-200">30s</option>
-                    <option value="0" class="bg-cardbg text-slate-200">Pause</option>
-                </select>
+    <!-- LOGIN SCREEN -->
+    <div id="view-login" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkbg">
+        <div class="bg-cardbg border border-cardborder rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6 relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl"></div>
+            
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-3">
+                    <span class="text-2xl">⚡</span>
+                </div>
+                <h2 class="text-xl font-bold text-slate-100">Power Meter Dashboard</h2>
+                <p class="text-xs text-slate-400">Silakan masuk untuk memantau data daya listrik</p>
             </div>
 
-            <!-- Settings Button -->
-            <button onclick="toggleSettingsModal()" class="p-2 rounded-lg bg-darkbg/60 border border-cardborder hover:border-cyan-500/50 text-slate-300 hover:text-cyan-400 transition" title="Pengaturan Tarif PLN">
-                ⚙️
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 space-y-6">
-        
-        <!-- KPI Cards Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Card 1: Active Power (Watt) -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/40 transition">
-                <div class="flex justify-between items-start">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Daya Aktif Saat Ini</span>
-                    <span class="text-cyan-400 text-lg">💡</span>
-                </div>
-                <div class="mt-3 flex items-baseline gap-2">
-                    <span id="val-power" class="text-3xl lg:text-4xl font-extrabold text-cyan-400 tracking-tight">0.0</span>
-                    <span class="text-sm font-semibold text-slate-400">Watt</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
-                    <span>Puncak Hari Ini:</span>
-                    <span id="val-peak-power" class="font-bold text-slate-200">0.0 W</span>
-                </div>
+            <div id="login-error" class="hidden bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs px-3.5 py-2.5 rounded-xl text-center">
+                Username atau password salah!
             </div>
 
-            <!-- Card 2: Today's Energy & Cost -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition">
-                <div class="flex justify-between items-start">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Energi & Biaya Hari Ini</span>
-                    <span class="text-emerald-400 text-lg">💰</span>
-                </div>
-                <div class="mt-3 flex items-baseline gap-2">
-                    <span id="val-energy-today" class="text-3xl lg:text-4xl font-extrabold text-emerald-400 tracking-tight">0.00</span>
-                    <span class="text-sm font-semibold text-slate-400">kWh</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
-                    <span>Estimasi Biaya:</span>
-                    <span id="val-cost-today" class="font-bold text-emerald-300">Rp 0</span>
-                </div>
-            </div>
-
-            <!-- Card 3: Voltage & Current -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500/40 transition">
-                <div class="flex justify-between items-start">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tegangan & Arus</span>
-                    <span class="text-amber-400 text-lg">🔌</span>
-                </div>
-                <div class="mt-3 grid grid-cols-2 gap-2">
-                    <div>
-                        <span class="text-xs text-slate-400 block">Tegangan</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="val-voltage" class="text-2xl font-bold text-amber-400">0.0</span>
-                            <span class="text-xs text-slate-400">V</span>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="text-xs text-slate-400 block">Arus</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="val-current" class="text-2xl font-bold text-amber-300">0.00</span>
-                            <span class="text-xs text-slate-400">A</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
-                    <span>Rata-rata Tegangan:</span>
-                    <span id="val-avg-volt" class="font-bold text-slate-200">0.0 V</span>
-                </div>
-            </div>
-
-            <!-- Card 4: PF & Frequency & Total Energy -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/40 transition">
-                <div class="flex justify-between items-start">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Power Factor & Hz</span>
-                    <span class="text-purple-400 text-lg">📐</span>
-                </div>
-                <div class="mt-3 grid grid-cols-2 gap-2">
-                    <div>
-                        <span class="text-xs text-slate-400 block">Power Factor</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="val-pf" class="text-2xl font-bold text-purple-400">0.00</span>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="text-xs text-slate-400 block">Frekuensi</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="val-freq" class="text-2xl font-bold text-purple-300">0.0</span>
-                            <span class="text-xs text-slate-400">Hz</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
-                    <span>Total Akumulasi:</span>
-                    <span id="val-energy-total" class="font-bold text-slate-200">0.00 kWh</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chart Section -->
-        <div class="bg-cardbg border border-cardborder rounded-2xl p-5 lg:p-6 space-y-4">
-            <!-- Chart Header & Filter -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-4">
                 <div>
-                    <h2 class="font-bold text-base text-slate-100 flex items-center gap-2">
-                        <span>📈</span> Riwayat Konsumsi Daya
-                    </h2>
-                    <p class="text-xs text-slate-400">Visualisasi beban listrik dalam periode waktu</p>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Username</label>
+                    <input type="text" id="login-username" required class="w-full bg-darkbg border border-cardborder rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition" placeholder="admin">
                 </div>
-                <div class="flex items-center gap-1 bg-darkbg/80 p-1 rounded-xl border border-cardborder text-xs font-medium self-stretch sm:self-auto justify-center">
-                    <button onclick="changeRange('1h')" id="btn-1h" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">1 Jam</button>
-                    <button onclick="changeRange('6h')" id="btn-6h" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">6 Jam</button>
-                    <button onclick="changeRange('24h')" id="btn-24h" class="px-3 py-1.5 rounded-lg transition bg-cyan-600/30 text-cyan-300 font-bold border border-cyan-500/30">24 Jam</button>
-                    <button onclick="changeRange('7d')" id="btn-7d" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">7 Hari</button>
-                    <button onclick="changeRange('30d')" id="btn-30d" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">30 Hari</button>
-                </div>
-            </div>
-
-            <!-- Canvas Container -->
-            <div class="relative h-72 sm:h-80 w-full">
-                <canvas id="powerChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Secondary Charts Grid: Voltage & Current + Energy Accumulation -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Chart 2: Voltage & Current -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-3">
-                <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
-                    <span>⚡</span> Tegangan (V) & Arus (A)
-                </h3>
-                <div class="relative h-60 w-full">
-                    <canvas id="voltCurrentChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 3: Energy (kWh) -->
-            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-3">
-                <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
-                    <span>🔋</span> Akumulasi Total kWh
-                </h3>
-                <div class="relative h-60 w-full">
-                    <canvas id="energyChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Latest Records Table -->
-        <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-4">
-            <div class="flex justify-between items-center">
-                <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
-                    <span>📋</span> Data Metrik Terakhir Diterima
-                </h3>
-                <span id="text-total-records" class="text-xs text-slate-400">Total: 0 records</span>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs text-left text-slate-300">
-                    <thead class="bg-darkbg/60 text-slate-400 uppercase tracking-wider font-semibold border-b border-cardborder">
-                        <tr>
-                            <th class="px-4 py-2.5">Waktu</th>
-                            <th class="px-4 py-2.5">Tegangan (V)</th>
-                            <th class="px-4 py-2.5">Arus (A)</th>
-                            <th class="px-4 py-2.5">Daya (W)</th>
-                            <th class="px-4 py-2.5">Energi (kWh)</th>
-                            <th class="px-4 py-2.5">PF</th>
-                            <th class="px-4 py-2.5">Hz</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-logs-body" class="divide-y divide-cardborder/40 font-mono">
-                        <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- Settings Modal -->
-    <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-cardbg border border-cardborder rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-cardborder pb-3">
-                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
-                    ⚙️ Pengaturan Tarif Listrik PLN
-                </h3>
-                <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
-            </div>
-
-            <div class="space-y-4 text-xs">
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1.5">Tarif per kWh (Rupiah):</label>
-                    <input type="number" id="input-tariff" step="0.01" class="w-full bg-darkbg border border-cardborder rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition" placeholder="Contoh: 1444.70">
-                    <p class="mt-1 text-slate-400 text-[11px]">
-                        Referensi: Golongan R-1/1300VA & 2200VA: Rp 1.444,70 / kWh. R-1/900VA: Rp 1.352 / kWh.
-                    </p>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
+                    <input type="password" id="login-password" required class="w-full bg-darkbg border border-cardborder rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition" placeholder="••••••••">
                 </div>
 
-                <div class="bg-darkbg/60 p-3 rounded-xl border border-cardborder text-slate-400 space-y-1">
-                    <p class="font-semibold text-slate-300">Info Endpoint ESP32:</p>
-                    <p class="font-mono text-cyan-400">POST /api/metrics</p>
-                    <p class="text-[11px]">Gunakan endpoint ini di ESP32 untuk mengirimkan telemetri PZEM-004T.</p>
-                </div>
-            </div>
+                <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-500 hover:from-cyan-500 hover:to-emerald-400 font-semibold text-white shadow-lg shadow-cyan-500/25 transition text-sm flex items-center justify-center gap-2">
+                    <span>Masuk</span> &rarr;
+                </button>
+            </form>
 
-            <div class="flex justify-end gap-2.5 pt-2 border-t border-cardborder">
-                <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-xl bg-darkbg text-slate-300 hover:text-white transition text-xs">Batal</button>
-                <button onclick="saveSettings()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-500 hover:from-cyan-500 hover:to-emerald-400 font-semibold text-white shadow-lg shadow-cyan-500/20 transition text-xs">Simpan</button>
+            <div class="text-center text-[11px] text-slate-500 pt-2 border-t border-cardborder/60">
+                Kredensial disimpan di file <code class="text-cyan-400 font-mono">data/auth.json</code>
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="border-t border-cardborder/60 py-4 text-center text-xs text-slate-500">
-        Power Meter & Server Monitor &bull; Built with Go, SQLite, & Chart.js
-    </footer>
+    <!-- MAIN APP (HIDDEN UNTIL AUTHENTICATED) -->
+    <div id="view-dashboard" class="hidden flex-1 flex flex-col">
+        <!-- Navbar -->
+        <header class="border-b border-cardborder bg-cardbg/80 backdrop-blur-md sticky top-0 z-30 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <span class="text-xl">⚡</span>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
+                        Power Meter Monitor
+                        <span id="badge-device" class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                            <span id="dot-status" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                            <span id="text-status">Connecting...</span>
+                        </span>
+                    </h1>
+                    <p class="text-xs text-slate-400">PZEM-004T + ESP32 Live Telemetry</p>
+                </div>
+            </div>
 
-    <!-- Logic Script -->
+            <div class="flex items-center gap-2.5 sm:gap-4">
+                <!-- Auto Refresh Interval -->
+                <div class="flex items-center gap-2 bg-darkbg/60 border border-cardborder rounded-lg px-2.5 py-1 text-xs text-slate-300">
+                    <span class="hidden sm:inline text-slate-400">Update:</span>
+                    <select id="select-refresh" class="bg-transparent border-0 outline-none text-cyan-400 cursor-pointer text-xs font-semibold">
+                        <option value="3000" class="bg-cardbg text-slate-200">3s</option>
+                        <option value="5000" selected class="bg-cardbg text-slate-200">5s</option>
+                        <option value="15000" class="bg-cardbg text-slate-200">15s</option>
+                        <option value="30000" class="bg-cardbg text-slate-200">30s</option>
+                        <option value="0" class="bg-cardbg text-slate-200">Pause</option>
+                    </select>
+                </div>
+
+                <!-- Settings Button -->
+                <button onclick="toggleSettingsModal()" class="p-2 rounded-lg bg-darkbg/60 border border-cardborder hover:border-cyan-500/50 text-slate-300 hover:text-cyan-400 transition" title="Pengaturan Tarif PLN">
+                    ⚙️
+                </button>
+
+                <!-- User Profile & Logout -->
+                <div class="flex items-center gap-2 pl-2 border-l border-cardborder">
+                    <span id="user-display" class="hidden sm:inline text-xs font-semibold text-slate-300">admin</span>
+                    <button onclick="handleLogout()" class="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-medium transition flex items-center gap-1" title="Keluar">
+                        <span>🚪</span>
+                        <span class="hidden sm:inline">Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 space-y-6">
+            <!-- KPI Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Card 1: Active Power (Watt) -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/40 transition">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Daya Aktif Saat Ini</span>
+                        <span class="text-cyan-400 text-lg">💡</span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span id="val-power" class="text-3xl lg:text-4xl font-extrabold text-cyan-400 tracking-tight">0.0</span>
+                        <span class="text-sm font-semibold text-slate-400">Watt</span>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
+                        <span>Puncak Hari Ini:</span>
+                        <span id="val-peak-power" class="font-bold text-slate-200">0.0 W</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Today's Energy & Cost -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Energi & Biaya Hari Ini</span>
+                        <span class="text-emerald-400 text-lg">💰</span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span id="val-energy-today" class="text-3xl lg:text-4xl font-extrabold text-emerald-400 tracking-tight">0.00</span>
+                        <span class="text-sm font-semibold text-slate-400">kWh</span>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
+                        <span>Estimasi Biaya:</span>
+                        <span id="val-cost-today" class="font-bold text-emerald-300">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Voltage & Current -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500/40 transition">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tegangan & Arus</span>
+                        <span class="text-amber-400 text-lg">🔌</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-xs text-slate-400 block">Tegangan</span>
+                            <div class="flex items-baseline gap-1">
+                                <span id="val-voltage" class="text-2xl font-bold text-amber-400">0.0</span>
+                                <span class="text-xs text-slate-400">V</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">Arus</span>
+                            <div class="flex items-baseline gap-1">
+                                <span id="val-current" class="text-2xl font-bold text-amber-300">0.00</span>
+                                <span class="text-xs text-slate-400">A</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
+                        <span>Rata-rata Tegangan:</span>
+                        <span id="val-avg-volt" class="font-bold text-slate-200">0.0 V</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: PF & Frequency & Total Energy -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/40 transition">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Power Factor & Hz</span>
+                        <span class="text-purple-400 text-lg">📐</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-xs text-slate-400 block">Power Factor</span>
+                            <div class="flex items-baseline gap-1">
+                                <span id="val-pf" class="text-2xl font-bold text-purple-400">0.00</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">Frekuensi</span>
+                            <div class="flex items-baseline gap-1">
+                                <span id="val-freq" class="text-2xl font-bold text-purple-300">0.0</span>
+                                <span class="text-xs text-slate-400">Hz</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-cardborder/60 flex justify-between text-xs text-slate-400">
+                        <span>Total Akumulasi:</span>
+                        <span id="val-energy-total" class="font-bold text-slate-200">0.00 kWh</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 lg:p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                            <span>📈</span> Riwayat Konsumsi Daya
+                        </h2>
+                        <p class="text-xs text-slate-400">Visualisasi beban listrik dalam periode waktu</p>
+                    </div>
+                    <div class="flex items-center gap-1 bg-darkbg/80 p-1 rounded-xl border border-cardborder text-xs font-medium self-stretch sm:self-auto justify-center">
+                        <button onclick="changeRange('1h')" id="btn-1h" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">1 Jam</button>
+                        <button onclick="changeRange('6h')" id="btn-6h" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">6 Jam</button>
+                        <button onclick="changeRange('24h')" id="btn-24h" class="px-3 py-1.5 rounded-lg transition bg-cyan-600/30 text-cyan-300 font-bold border border-cyan-500/30">24 Jam</button>
+                        <button onclick="changeRange('7d')" id="btn-7d" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">7 Hari</button>
+                        <button onclick="changeRange('30d')" id="btn-30d" class="px-3 py-1.5 rounded-lg transition text-slate-400 hover:text-white">30 Hari</button>
+                    </div>
+                </div>
+
+                <div class="relative h-72 sm:h-80 w-full">
+                    <canvas id="powerChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Secondary Charts Grid: Voltage & Current + Energy Accumulation -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 2: Voltage & Current -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-3">
+                    <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                        <span>⚡</span> Tegangan (V) & Arus (A)
+                    </h3>
+                    <div class="relative h-60 w-full">
+                        <canvas id="voltCurrentChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 3: Energy (kWh) -->
+                <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-3">
+                    <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                        <span>🔋</span> Akumulasi Total kWh
+                    </h3>
+                    <div class="relative h-60 w-full">
+                        <canvas id="energyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest Records Table -->
+            <div class="bg-cardbg border border-cardborder rounded-2xl p-5 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                        <span>📋</span> Data Metrik Terakhir Diterima
+                    </h3>
+                    <span id="text-total-records" class="text-xs text-slate-400">Total: 0 records</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-darkbg/60 text-slate-400 uppercase tracking-wider font-semibold border-b border-cardborder">
+                            <tr>
+                                <th class="px-4 py-2.5">Waktu</th>
+                                <th class="px-4 py-2.5">Tegangan (V)</th>
+                                <th class="px-4 py-2.5">Arus (A)</th>
+                                <th class="px-4 py-2.5">Daya (W)</th>
+                                <th class="px-4 py-2.5">Energi (kWh)</th>
+                                <th class="px-4 py-2.5">PF</th>
+                                <th class="px-4 py-2.5">Hz</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-logs-body" class="divide-y divide-cardborder/40 font-mono">
+                            <tr>
+                                <td colspan="7" class="px-4 py-6 text-center text-slate-500 font-sans">Belum ada data masuk dari ESP32...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-cardbg border border-cardborder rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+                <div class="flex justify-between items-center border-b border-cardborder pb-3">
+                    <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                        ⚙️ Pengaturan Tarif Listrik PLN
+                    </h3>
+                    <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1.5">Tarif per kWh (Rupiah):</label>
+                        <input type="number" id="input-tariff" step="0.01" class="w-full bg-darkbg border border-cardborder rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition" placeholder="Contoh: 1444.70">
+                        <p class="mt-1 text-slate-400 text-[11px]">
+                            Referensi: Golongan R-1/1300VA & 2200VA: Rp 1.444,70 / kWh. R-1/900VA: Rp 1.352 / kWh.
+                        </p>
+                    </div>
+
+                    <div class="bg-darkbg/60 p-3 rounded-xl border border-cardborder text-slate-400 space-y-1">
+                        <p class="font-semibold text-slate-300">Info Endpoint ESP32:</p>
+                        <p class="font-mono text-cyan-400">POST /api/metrics</p>
+                        <p class="text-[11px]">Header: <code class="text-slate-200">X-API-Key: &lt;api_key dari data/auth.json&gt;</code></p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2.5 pt-2 border-t border-cardborder">
+                    <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-xl bg-darkbg text-slate-300 hover:text-white transition text-xs">Batal</button>
+                    <button onclick="saveSettings()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-500 hover:from-cyan-500 hover:to-emerald-400 font-semibold text-white shadow-lg shadow-cyan-500/20 transition text-xs">Simpan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="border-t border-cardborder/60 py-4 text-center text-xs text-slate-500">
+            Power Meter & Server Monitor &bull; Built with Go, SQLite, & Chart.js
+        </footer>
+    </div>
+
+    <!-- Script Logic -->
     <script>
         let currentRange = '24h';
         let refreshTimer = null;
         let refreshInterval = 5000;
         let plnTariff = parseFloat(localStorage.getItem('pln_tariff')) || 1444.70;
+        let authToken = localStorage.getItem('power_auth_token') || '';
 
         // Chart Instances
         let powerChartInstance = null;
@@ -307,6 +353,91 @@
         let energyChartInstance = null;
 
         document.getElementById('input-tariff').value = plnTariff;
+
+        // AUTH FUNCTIONS
+        async function checkAuth() {
+            if (!authToken) {
+                showLoginView();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/check', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (data.authenticated) {
+                    document.getElementById('user-display').innerText = data.username || 'admin';
+                    showDashboardView();
+                } else {
+                    showLoginView();
+                }
+            } catch (err) {
+                showLoginView();
+            }
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const errEl = document.getElementById('login-error');
+            errEl.classList.add('hidden');
+
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                if (!res.ok) {
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                const data = await res.json();
+                authToken = data.token;
+                localStorage.setItem('power_auth_token', authToken);
+                document.getElementById('user-display').innerText = data.username;
+                showDashboardView();
+            } catch (err) {
+                errEl.innerText = "Gagal terhubung ke server!";
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+            } catch (e) {}
+
+            authToken = '';
+            localStorage.removeItem('power_auth_token');
+            if (refreshTimer) clearInterval(refreshTimer);
+            showLoginView();
+        }
+
+        function showLoginView() {
+            document.getElementById('view-login').classList.remove('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+        }
+
+        function showDashboardView() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            
+            if (!powerChartInstance) {
+                initCharts();
+            }
+            fetchSummary();
+            fetchHistory();
+            setupAutoRefresh();
+        }
 
         function toggleSettingsModal() {
             const m = document.getElementById('modal-settings');
@@ -488,7 +619,13 @@
 
         async function fetchSummary() {
             try {
-                const res = await fetch('/api/metrics/summary');
+                const res = await fetch('/api/metrics/summary', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.status === 401) {
+                    handleLogout();
+                    return;
+                }
                 if (!res.ok) return;
                 const data = await res.json();
 
@@ -541,7 +678,13 @@
 
         async function fetchHistory() {
             try {
-                const res = await fetch(`/api/metrics/history?range=${currentRange}`);
+                const res = await fetch(`/api/metrics/history?range=${currentRange}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.status === 401) {
+                    handleLogout();
+                    return;
+                }
                 if (!res.ok) return;
                 const json = await res.json();
                 const list = json.data || [];
@@ -587,7 +730,6 @@
                     energyChartInstance.update('none');
                 }
 
-                // Render Table with latest 10 items (reversed)
                 renderTable(list.slice(-10).reverse());
 
             } catch (err) {
@@ -640,12 +782,9 @@
             setupAutoRefresh();
         });
 
-        // Startup
+        // App Entry
         window.addEventListener('DOMContentLoaded', () => {
-            initCharts();
-            fetchSummary();
-            fetchHistory();
-            setupAutoRefresh();
+            checkAuth();
         });
     </script>
 </body>
