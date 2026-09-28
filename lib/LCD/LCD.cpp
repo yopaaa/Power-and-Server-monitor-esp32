@@ -60,6 +60,7 @@ uint32_t getAutoCycleInterval() {
 
 void setDisplayPage(DisplayPage page) {
     currentPage = page;
+    lcdResetActivity();
     if (currentPage == PAGE_SERVER_MONITOR) {
         drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
     } else {
@@ -114,6 +115,45 @@ void lcdBacklight(int brightness) {
     ledcWrite(ledChannel, brightness);
 }
 
+static bool screenSleeping = false;
+static uint32_t lastActivityTime = 0;
+
+void lcdSleep() {
+    if (!screenSleeping) {
+        screenSleeping = true;
+        lcdBacklight(false);
+        Serial.println("[LCD] Screen Sleeping (Timeout 30s, Backlight OFF)");
+    }
+}
+
+void lcdWake() {
+    lastActivityTime = millis();
+    if (screenSleeping) {
+        screenSleeping = false;
+        lcdBacklight(true);
+        if (currentPage == PAGE_SERVER_MONITOR) {
+            drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+        } else {
+            drawPowerMeterFrame();
+        }
+        Serial.println("[LCD] Screen Waking Up (Backlight ON)");
+    }
+}
+
+bool lcdIsSleeping() {
+    return screenSleeping;
+}
+
+void lcdResetActivity() {
+    lastActivityTime = millis();
+}
+
+void handleLcdTimeout(uint32_t timeoutMs) {
+    if (!screenSleeping && (millis() - lastActivityTime >= timeoutMs)) {
+        lcdSleep();
+    }
+}
+
 void lcdToggleInversion() {
     isScreenInverted = !isScreenInverted;
     tft.invertDisplay(isScreenInverted);
@@ -140,6 +180,9 @@ void lcdInit()
     tft.init();
     tft.setRotation(0);
     tft.fillScreen(C_BG);
+
+    screenSleeping = false;
+    lastActivityTime = millis();
 
     lcdBacklight(240); // 94% PWM: deep blacks, minimal backlight bleed
     drawBootScreen("POWER & SERVER");
@@ -246,6 +289,7 @@ void drawPowerMeterFrame()
 
 void updatePowerMeterDisplay(const PZEMMetrics &m, const String &statusInfo)
 {
+    if (screenSleeping) return;
     char buf[20];
     bool connChanged = (!prevInit || prevConn != m.isConnected);
 
@@ -449,6 +493,7 @@ void drawServerMonitorFrame(const ServerMetrics &srv, int serverIdx, int totalSe
 
 void updateServerMonitorDisplay(const ServerMetrics &srv, int serverIdx, int totalServers)
 {
+    if (screenSleeping) return;
     if (!srvFrameDrawn || serverIdx != srvPrevIdx) {
         drawServerMonitorFrame(srv, serverIdx, totalServers);
     }
@@ -594,8 +639,8 @@ void drawBootScreen(const String &title)
     // ── Footer Section (Y: 192..236) ──
     tft.setTextSize(1);
     tft.setTextColor(C_DIM, C_BG);
-    tft.drawCentreString("Web Portal: http://esp.local", 120, 194, 1);
-    tft.drawCentreString("Touch TTP223 / BOOT to cycle", 120, 210, 1);
+    tft.drawCentreString("Tahan Tombol: Hotspot AP", 120, 194, 1);
+    tft.drawCentreString("Tekan Lama: Ganti | Tap: Bangun", 120, 210, 1);
 
     // ── Bottom Accent Stripe ──
     tft.fillRect(0, 237, 240, 3, C_ACCENT);
