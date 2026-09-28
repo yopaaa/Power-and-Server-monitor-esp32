@@ -181,8 +181,8 @@ void loop()
         lcdResetActivity();
     }
 
-    // ── 3. Pengatur Timeout Layar LCD (Mati otomatis setelah 30 detik tanpa sentuhan) ──
-    handleLcdTimeout(30000);
+    // ── 3. Pengatur Layar LCD: Auto-Sleep & Auto-Wake Berkala ──
+    handleLcdTimeout();
 
     // ── 4. Rotasi Otomatis (Auto-Cycle tiap interval jika diaktifkan dan layar sedang menyala) ──
     if (!lcdIsSleeping() && isAutoCycleEnabled() && (currentMillis - lastAutoCycleTime >= getAutoCycleInterval())) {

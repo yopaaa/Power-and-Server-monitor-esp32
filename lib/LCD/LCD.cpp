@@ -21,6 +21,10 @@ static String prevStatus = "";
 static bool isScreenInverted = false;
 static bool isAutoCycle = false;
 static uint32_t autoCycleIntervalMs = 20000; // 20 detik
+static bool isAutoSleep = true;
+static uint32_t autoSleepTimeoutMs = 30000;  // 30 detik
+static bool isAutoWake = false;
+static uint32_t autoWakeDelayMs = 300000;    // 300 detik (5 menit)
 static DisplayPage currentPage = PAGE_POWER_METER; // Default to Power Meter
 static int screenIndex = 0; // 0 = Power Meter, 1..N = Server 1..N
 
@@ -29,6 +33,14 @@ void loadLcdSettings() {
     if (prefs.begin("lcd_cfg", true)) {
         isAutoCycle = prefs.getBool("autocycle", false);
         autoCycleIntervalMs = prefs.getUInt("cycle_int", 20000);
+        isAutoSleep = prefs.getBool("autosleep", true);
+        uint32_t sleepSec = prefs.getUInt("sleep_to", 30);
+        if (sleepSec < 5) sleepSec = 30;
+        autoSleepTimeoutMs = sleepSec * 1000;
+        isAutoWake = prefs.getBool("autowake", false);
+        uint32_t wakeSec = prefs.getUInt("wake_del", 300);
+        if (wakeSec < 5) wakeSec = 300;
+        autoWakeDelayMs = wakeSec * 1000;
         prefs.end();
     }
 }
@@ -38,6 +50,10 @@ void saveLcdSettings() {
     if (prefs.begin("lcd_cfg", false)) {
         prefs.putBool("autocycle", isAutoCycle);
         prefs.putUInt("cycle_int", autoCycleIntervalMs);
+        prefs.putBool("autosleep", isAutoSleep);
+        prefs.putUInt("sleep_to", autoSleepTimeoutMs / 1000);
+        prefs.putBool("autowake", isAutoWake);
+        prefs.putUInt("wake_del", autoWakeDelayMs / 1000);
         prefs.end();
     }
 }
@@ -56,6 +72,39 @@ bool isAutoCycleEnabled() {
 
 uint32_t getAutoCycleInterval() {
     return autoCycleIntervalMs;
+}
+
+void setAutoSleep(bool enabled, uint32_t timeoutSec) {
+    isAutoSleep = enabled;
+    if (timeoutSec >= 5) {
+        autoSleepTimeoutMs = timeoutSec * 1000;
+    }
+    saveLcdSettings();
+    lcdResetActivity();
+}
+
+bool isAutoSleepEnabled() {
+    return isAutoSleep;
+}
+
+uint32_t getAutoSleepTimeout() {
+    return autoSleepTimeoutMs / 1000;
+}
+
+void setAutoWake(bool enabled, uint32_t delaySec) {
+    isAutoWake = enabled;
+    if (delaySec >= 5) {
+        autoWakeDelayMs = delaySec * 1000;
+    }
+    saveLcdSettings();
+}
+
+bool isAutoWakeEnabled() {
+    return isAutoWake;
+}
+
+uint32_t getAutoWakeDelay() {
+    return autoWakeDelayMs / 1000;
 }
 
 void setDisplayPage(DisplayPage page) {
@@ -106,23 +155,39 @@ void cyclePrevScreen() {
 }
 
 void lcdBacklight(bool on) { 
-    ledcWrite(ledChannel, on ? 240 : 0);
+    if (on) {
+        pinMode(TFT_BL, OUTPUT);
+        ledcAttachPin(TFT_BL, ledChannel);
+        ledcWrite(ledChannel, 240);
+    } else {
+        ledcDetachPin(TFT_BL);
+        pinMode(TFT_BL, OUTPUT);
+        digitalWrite(TFT_BL, LOW); // Paksa pin IO25 ke GND (0V) agar backlight benar-benar padam
+    }
 }
 
 void lcdBacklight(int brightness) {
-    if (brightness < 0) brightness = 0;
+    if (brightness <= 0) {
+        lcdBacklight(false);
+        return;
+    }
     if (brightness > 255) brightness = 255;
+    pinMode(TFT_BL, OUTPUT);
+    ledcAttachPin(TFT_BL, ledChannel);
     ledcWrite(ledChannel, brightness);
 }
 
 static bool screenSleeping = false;
 static uint32_t lastActivityTime = 0;
+static uint32_t sleepStartTime = 0;
 
 void lcdSleep() {
     if (!screenSleeping) {
         screenSleeping = true;
+        sleepStartTime = millis();
         lcdBacklight(false);
-        Serial.println("[LCD] Screen Sleeping (Timeout 30s, Backlight OFF)");
+        tft.fillScreen(C_BG); // Layar diisi hitam pekat
+        Serial.println("[LCD] Screen Sleeping (Backlight OFF on IO25)");
     }
 }
 
@@ -133,10 +198,12 @@ void lcdWake() {
         lcdBacklight(true);
         if (currentPage == PAGE_SERVER_MONITOR) {
             drawServerMonitorFrame(getCurrentServer(), getCurrentServerIndex(), getServerCount());
+            updateServerMonitorDisplay(getCurrentServer(), getCurrentServerIndex(), getServerCount());
         } else {
             drawPowerMeterFrame();
+            updatePowerMeterDisplay(getPZEMMetrics());
         }
-        Serial.println("[LCD] Screen Waking Up (Backlight ON)");
+        Serial.println("[LCD] Screen Waking Up (Backlight ON on IO25)");
     }
 }
 
@@ -148,10 +215,30 @@ void lcdResetActivity() {
     lastActivityTime = millis();
 }
 
-void handleLcdTimeout(uint32_t timeoutMs) {
-    if (!screenSleeping && (millis() - lastActivityTime >= timeoutMs)) {
-        lcdSleep();
+void handleLcdTimeout() {
+    uint32_t now = millis();
+
+    // 1. Auto Off / Sleep jika layar menyala dan fitur Auto Sleep aktif
+    if (!screenSleeping && isAutoSleep) {
+        if (now - lastActivityTime >= autoSleepTimeoutMs) {
+            lcdSleep();
+        }
     }
+
+    // 2. Auto On / Wake jika layar tidur dan fitur Auto Wake aktif
+    if (screenSleeping && isAutoWake) {
+        if (now - sleepStartTime >= autoWakeDelayMs) {
+            Serial.println("[LCD] Periodic auto-wake interval reached -> waking screen");
+            lcdWake();
+        }
+    }
+}
+
+void handleLcdTimeout(uint32_t timeoutMs) {
+    if (timeoutMs >= 5000) {
+        autoSleepTimeoutMs = timeoutMs;
+    }
+    handleLcdTimeout();
 }
 
 void lcdToggleInversion() {
@@ -172,14 +259,15 @@ void lcdInit()
 {
     loadLcdSettings();
 
-    ledcSetup(ledChannel, freq, resolution);
-    ledcAttachPin(TFT_BL, ledChannel);
-
-    lcdBacklight(0);
-
+    // Inisialisasi TFT terlebih dahulu (karena tft.init akan menimpa pin TFT_BL menjadi HIGH)
     tft.init();
     tft.setRotation(0);
     tft.fillScreen(C_BG);
+
+    // Ambil alih pin TFT_BL (IO25) dengan LEDC PWM setelah tft.init
+    ledcSetup(ledChannel, freq, resolution);
+    pinMode(TFT_BL, OUTPUT);
+    ledcAttachPin(TFT_BL, ledChannel);
 
     screenSleeping = false;
     lastActivityTime = millis();

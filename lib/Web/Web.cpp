@@ -188,6 +188,102 @@ void setupWeb()
         server.send(200);
     });
 
+    // ── LCD Auto-Sleep & Auto-Wake API ──
+    server.on("/lcd/power", HTTP_GET, []() {
+        addCorsHeaders();
+        JsonDocument doc;
+        doc["autoSleep"] = isAutoSleepEnabled();
+        doc["sleepTimeout"] = getAutoSleepTimeout();
+        doc["autoWake"] = isAutoWakeEnabled();
+        doc["wakeDelay"] = getAutoWakeDelay();
+        doc["isSleeping"] = lcdIsSleeping();
+        doc["autoCycle"] = isAutoCycleEnabled();
+        doc["cycleInterval"] = getAutoCycleInterval() / 1000;
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    });
+
+    auto handleLcdPowerPost = []() {
+        addCorsHeaders();
+        if (server.hasArg("autoSleep")) {
+            String val = server.arg("autoSleep");
+            bool enable = (val == "1" || val == "true" || val == "on");
+            uint32_t to = getAutoSleepTimeout();
+            if (server.hasArg("sleepTimeout")) {
+                to = server.arg("sleepTimeout").toInt();
+            }
+            setAutoSleep(enable, to);
+        } else if (server.hasArg("sleepTimeout")) {
+            setAutoSleep(isAutoSleepEnabled(), server.arg("sleepTimeout").toInt());
+        }
+
+        if (server.hasArg("autoWake")) {
+            String val = server.arg("autoWake");
+            bool enable = (val == "1" || val == "true" || val == "on");
+            uint32_t del = getAutoWakeDelay();
+            if (server.hasArg("wakeDelay")) {
+                del = server.arg("wakeDelay").toInt();
+            }
+            setAutoWake(enable, del);
+        } else if (server.hasArg("wakeDelay")) {
+            setAutoWake(isAutoWakeEnabled(), server.arg("wakeDelay").toInt());
+        }
+
+        if (server.hasArg("autoCycle")) {
+            String val = server.arg("autoCycle");
+            bool enable = (val == "1" || val == "true" || val == "on");
+            uint32_t intSec = getAutoCycleInterval() / 1000;
+            if (server.hasArg("cycleInterval")) {
+                intSec = server.arg("cycleInterval").toInt();
+            }
+            setAutoCycle(enable, intSec * 1000);
+        }
+
+        JsonDocument doc;
+        doc["status"] = "ok";
+        doc["message"] = "Pengaturan layar LCD berhasil disimpan";
+        doc["autoSleep"] = isAutoSleepEnabled();
+        doc["sleepTimeout"] = getAutoSleepTimeout();
+        doc["autoWake"] = isAutoWakeEnabled();
+        doc["wakeDelay"] = getAutoWakeDelay();
+        doc["isSleeping"] = lcdIsSleeping();
+        String json;
+        serializeJson(doc, json);
+        server.send(200, "application/json", json);
+    };
+
+    server.on("/lcd/power", HTTP_POST, handleLcdPowerPost);
+    server.on("/lcd/power", HTTP_OPTIONS, []() {
+        addCorsHeaders();
+        server.send(200);
+    });
+
+    // Toggle sleep / wake manual
+    auto handleLcdSleepToggle = []() {
+        addCorsHeaders();
+        if (server.hasArg("val")) {
+            String v = server.arg("val");
+            if (v == "1" || v == "wake" || v == "on") {
+                lcdWake();
+            } else {
+                lcdSleep();
+            }
+        } else {
+            if (lcdIsSleeping()) {
+                lcdWake();
+            } else {
+                lcdSleep();
+            }
+        }
+        server.send(200, "application/json", String("{\"status\":\"ok\",\"isSleeping\":") + (lcdIsSleeping() ? "true" : "false") + "}");
+    };
+
+    server.on("/lcd/sleep", HTTP_GET, handleLcdSleepToggle);
+    server.on("/lcd/sleep", HTTP_POST, handleLcdSleepToggle);
+    server.on("/lcd/sleep/toggle", HTTP_GET, handleLcdSleepToggle);
+    server.on("/lcd/sleep/toggle", HTTP_POST, handleLcdSleepToggle);
+
     auto handleLcdInvert = []() {
         addCorsHeaders();
         lcdToggleInversion();

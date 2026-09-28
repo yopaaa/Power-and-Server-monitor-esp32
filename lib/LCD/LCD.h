@@ -27,6 +27,16 @@ void setScreenIndex(int idx);
 void setAutoCycle(bool enabled, uint32_t intervalMs = 20000);
 bool isAutoCycleEnabled();
 uint32_t getAutoCycleInterval();
+
+// Auto-Sleep & Auto-Wake Mode (Pengatur waktu mati & bangun otomatis)
+void setAutoSleep(bool enabled, uint32_t timeoutSec = 30);
+bool isAutoSleepEnabled();
+uint32_t getAutoSleepTimeout();
+
+void setAutoWake(bool enabled, uint32_t delaySec = 300);
+bool isAutoWakeEnabled();
+uint32_t getAutoWakeDelay();
+
 void loadLcdSettings();
 void saveLcdSettings();
 
@@ -57,7 +67,8 @@ void lcdSleep();
 void lcdWake();
 bool lcdIsSleeping();
 void lcdResetActivity();
-void handleLcdTimeout(uint32_t timeoutMs = 30000);
+void handleLcdTimeout();
+void handleLcdTimeout(uint32_t timeoutMs);
 void lcdPrintCenterX(String text, int line, uint16_t color = C_TEXT, uint8_t size = 2);
 void lcdToggleInversion();
 bool lcdIsInverted();

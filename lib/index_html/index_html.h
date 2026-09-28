@@ -585,6 +585,53 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
       </div>
 
+      <!-- CARD 4: 🖥️ Pengaturan Layar LCD (Screen Power & Display) -->
+      <div class="card">
+        <h2>
+          <span>🖥️ Pengaturan Layar LCD</span>
+          <span class="action-link" onclick="loadLcdPowerConfig()">Segarkan</span>
+        </h2>
+        <p class="card-desc">
+          Kontrol otomatis mati/hidup layar (backlight IO25) dan jeda waktu bangun.
+        </p>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0;">
+          <input type="checkbox" id="lcd-autosleep-check" onchange="updateLcdSleepUI()" style="width: auto; cursor: pointer;" />
+          <label for="lcd-autosleep-check" style="margin: 0; cursor: pointer; font-size: 11.5px; color: var(--text);">
+            Otomatis Matikan Layar (Auto Sleep)
+          </label>
+        </div>
+
+        <div class="form-group" id="grp-sleep-timeout">
+          <label>Batas Waktu Layar Mati (detik)</label>
+          <input id="lcd-sleep-timeout" type="number" min="5" max="3600" placeholder="30" />
+          <span style="font-size: 10px; color: var(--text-muted);">Layar mati jika tidak disentuh selama durasi ini (default: 30s).</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; margin: 10px 0 8px 0;">
+          <input type="checkbox" id="lcd-autowake-check" onchange="updateLcdSleepUI()" style="width: auto; cursor: pointer;" />
+          <label for="lcd-autowake-check" style="margin: 0; cursor: pointer; font-size: 11.5px; color: var(--text);">
+            Otomatis Nyala Berkala (Auto Wakeup)
+          </label>
+        </div>
+
+        <div class="form-group" id="grp-wake-delay">
+          <label>Jeda Bangun Otomatis (detik)</label>
+          <input id="lcd-wake-delay" type="number" min="10" max="86400" placeholder="300" />
+          <span style="font-size: 10px; color: var(--text-muted);">Layar otomatis menyala sendiri setiap jeda ini (misal 300s = 5 menit).</span>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-top: 12px;">
+          <button type="button" class="btn-primary" style="flex: 1;" onclick="saveLcdPowerConfig()">
+            Simpan Layar
+          </button>
+          <button type="button" class="btn-secondary" id="btn-toggle-sleep" onclick="toggleScreenSleep()" style="white-space: nowrap;">
+            🌙 Sleep / Wake
+          </button>
+        </div>
+        <div id="lcd-power-status" class="status-msg" style="display: none;"></div>
+      </div>
+
     </div>
   </div>
 
@@ -1051,15 +1098,85 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    async function loadLcdPowerConfig() {
+      try {
+        const res = await fetch("/lcd/power");
+        const data = await res.json();
+        document.getElementById("lcd-autosleep-check").checked = !!data.autoSleep;
+        document.getElementById("lcd-sleep-timeout").value = data.sleepTimeout || 30;
+        document.getElementById("lcd-autowake-check").checked = !!data.autoWake;
+        document.getElementById("lcd-wake-delay").value = data.wakeDelay || 300;
+        updateLcdSleepUI();
+      } catch (e) {
+        console.error("Gagal memuat pengaturan daya LCD", e);
+      }
+    }
+
+    function updateLcdSleepUI() {
+      const autoSleep = document.getElementById("lcd-autosleep-check").checked;
+      const autoWake = document.getElementById("lcd-autowake-check").checked;
+      document.getElementById("grp-sleep-timeout").style.opacity = autoSleep ? "1" : "0.5";
+      document.getElementById("grp-wake-delay").style.opacity = autoWake ? "1" : "0.5";
+    }
+
+    async function saveLcdPowerConfig() {
+      const autoSleep = document.getElementById("lcd-autosleep-check").checked;
+      const sleepTimeout = parseInt(document.getElementById("lcd-sleep-timeout").value) || 30;
+      const autoWake = document.getElementById("lcd-autowake-check").checked;
+      const wakeDelay = parseInt(document.getElementById("lcd-wake-delay").value) || 300;
+
+      const st = document.getElementById("lcd-power-status");
+      st.style.display = "block";
+      st.className = "status-msg";
+      st.textContent = "Menyimpan pengaturan layar...";
+
+      try {
+        const params = new URLSearchParams();
+        params.append("autoSleep", autoSleep ? "1" : "0");
+        params.append("sleepTimeout", sleepTimeout);
+        params.append("autoWake", autoWake ? "1" : "0");
+        params.append("wakeDelay", wakeDelay);
+
+        const res = await fetch("/lcd/power", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params.toString()
+        });
+        const data = await res.json();
+        if (data.status === "ok") {
+          st.className = "status-msg success";
+          st.textContent = "Pengaturan layar LCD berhasil disimpan!";
+        } else {
+          st.className = "status-msg error";
+          st.textContent = data.message || "Gagal menyimpan";
+        }
+      } catch (e) {
+        st.className = "status-msg error";
+        st.textContent = "Error: " + e.message;
+      }
+      setTimeout(() => { st.style.display = "none"; }, 3500);
+    }
+
+    async function toggleScreenSleep() {
+      try {
+        const res = await fetch("/lcd/sleep/toggle", { method: "POST" });
+        const data = await res.json();
+        const btn = document.getElementById("btn-toggle-sleep");
+        if (btn) btn.textContent = data.isSleeping ? "☀️ Bangunkan" : "🌙 Matikan Layar";
+      } catch (e) {
+        console.error("Gagal toggle sleep", e);
+      }
+    }
+
     // Init load
     loadSysInfo();
     loadWiFiList();
     loadBeszelConfig();
     loadPowerLoggerConfig();
+    loadLcdPowerConfig();
   </script>
 </body>
 </html>
-
 )rawliteral";
 
 #endif
