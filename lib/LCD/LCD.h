@@ -37,6 +37,12 @@ void setAutoWake(bool enabled, uint32_t delaySec = 300);
 bool isAutoWakeEnabled();
 uint32_t getAutoWakeDelay();
 
+// Power Surge Wakeup Mode (Bangunkan layar otomatis saat lonjakan daya Watt)
+void setPowerSurgeWake(bool enabled, float thresholdWatt = 500.0f);
+bool isPowerSurgeWakeEnabled();
+float getPowerSurgeThreshold();
+void checkPowerSurge(float currentPower);
+
 void loadLcdSettings();
 void saveLcdSettings();
 

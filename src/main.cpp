@@ -207,7 +207,9 @@ void loop()
     // ── 6. Loop Power Meter (PZEM-004T) ──
     if (currentMillis - lastPzemRead >= 1000) {
         lastPzemRead = currentMillis;
-        readPZEM(); // Sensor PZEM tetap selalu dibaca di background
+        if (readPZEM()) {
+            checkPowerSurge(getPZEMMetrics().power); // Deteksi lonjakan daya untuk bangunkan layar
+        }
 
         // Hanya refresh rendering LCD jika layar sedang menyala
         if (!lcdIsSleeping() && getDisplayPage() == PAGE_POWER_METER) {

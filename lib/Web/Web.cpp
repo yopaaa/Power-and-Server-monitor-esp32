@@ -196,6 +196,8 @@ void setupWeb()
         doc["sleepTimeout"] = getAutoSleepTimeout();
         doc["autoWake"] = isAutoWakeEnabled();
         doc["wakeDelay"] = getAutoWakeDelay();
+        doc["powerSurgeWake"] = isPowerSurgeWakeEnabled();
+        doc["powerSurgeThreshold"] = getPowerSurgeThreshold();
         doc["isSleeping"] = lcdIsSleeping();
         doc["autoCycle"] = isAutoCycleEnabled();
         doc["cycleInterval"] = getAutoCycleInterval() / 1000;
@@ -230,6 +232,18 @@ void setupWeb()
             setAutoWake(isAutoWakeEnabled(), server.arg("wakeDelay").toInt());
         }
 
+        if (server.hasArg("powerSurgeWake")) {
+            String val = server.arg("powerSurgeWake");
+            bool enable = (val == "1" || val == "true" || val == "on");
+            float thr = getPowerSurgeThreshold();
+            if (server.hasArg("powerSurgeThreshold")) {
+                thr = server.arg("powerSurgeThreshold").toFloat();
+            }
+            setPowerSurgeWake(enable, thr);
+        } else if (server.hasArg("powerSurgeThreshold")) {
+            setPowerSurgeWake(isPowerSurgeWakeEnabled(), server.arg("powerSurgeThreshold").toFloat());
+        }
+
         if (server.hasArg("autoCycle")) {
             String val = server.arg("autoCycle");
             bool enable = (val == "1" || val == "true" || val == "on");
@@ -247,6 +261,8 @@ void setupWeb()
         doc["sleepTimeout"] = getAutoSleepTimeout();
         doc["autoWake"] = isAutoWakeEnabled();
         doc["wakeDelay"] = getAutoWakeDelay();
+        doc["powerSurgeWake"] = isPowerSurgeWakeEnabled();
+        doc["powerSurgeThreshold"] = getPowerSurgeThreshold();
         doc["isSleeping"] = lcdIsSleeping();
         String json;
         serializeJson(doc, json);

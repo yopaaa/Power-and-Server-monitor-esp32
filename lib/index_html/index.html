@@ -615,6 +615,19 @@
           <span style="font-size: 10px; color: var(--text-muted);">Layar otomatis menyala sendiri setiap jeda ini (misal 300s = 5 menit).</span>
         </div>
 
+        <div style="display: flex; align-items: center; gap: 6px; margin: 10px 0 8px 0;">
+          <input type="checkbox" id="lcd-surge-check" onchange="updateLcdSleepUI()" style="width: auto; cursor: pointer;" />
+          <label for="lcd-surge-check" style="margin: 0; cursor: pointer; font-size: 11.5px; color: var(--text);">
+            Bangunkan Layar saat Lonjakan Daya (Surge Trigger)
+          </label>
+        </div>
+
+        <div class="form-group" id="grp-surge-threshold">
+          <label>Ambang Lonjakan Daya (Watt)</label>
+          <input id="lcd-surge-threshold" type="number" min="10" max="10000" placeholder="500" />
+          <span style="font-size: 10px; color: var(--text-muted);">Layar otomatis aktif jika daya melebihi atau melonjak sebesar nilai Watt ini.</span>
+        </div>
+
         <div style="display: flex; gap: 6px; margin-top: 12px;">
           <button type="button" class="btn-primary" style="flex: 1;" onclick="saveLcdPowerConfig()">
             Simpan Layar
@@ -1100,6 +1113,8 @@
         document.getElementById("lcd-sleep-timeout").value = data.sleepTimeout || 30;
         document.getElementById("lcd-autowake-check").checked = !!data.autoWake;
         document.getElementById("lcd-wake-delay").value = data.wakeDelay || 300;
+        document.getElementById("lcd-surge-check").checked = !!data.powerSurgeWake;
+        document.getElementById("lcd-surge-threshold").value = Math.round(data.powerSurgeThreshold || 500);
         updateLcdSleepUI();
       } catch (e) {
         console.error("Gagal memuat pengaturan daya LCD", e);
@@ -1109,8 +1124,10 @@
     function updateLcdSleepUI() {
       const autoSleep = document.getElementById("lcd-autosleep-check").checked;
       const autoWake = document.getElementById("lcd-autowake-check").checked;
+      const surgeWake = document.getElementById("lcd-surge-check").checked;
       document.getElementById("grp-sleep-timeout").style.opacity = autoSleep ? "1" : "0.5";
       document.getElementById("grp-wake-delay").style.opacity = autoWake ? "1" : "0.5";
+      document.getElementById("grp-surge-threshold").style.opacity = surgeWake ? "1" : "0.5";
     }
 
     async function saveLcdPowerConfig() {
@@ -1118,6 +1135,8 @@
       const sleepTimeout = parseInt(document.getElementById("lcd-sleep-timeout").value) || 30;
       const autoWake = document.getElementById("lcd-autowake-check").checked;
       const wakeDelay = parseInt(document.getElementById("lcd-wake-delay").value) || 300;
+      const surgeWake = document.getElementById("lcd-surge-check").checked;
+      const surgeThreshold = parseFloat(document.getElementById("lcd-surge-threshold").value) || 500;
 
       const st = document.getElementById("lcd-power-status");
       st.style.display = "block";
@@ -1130,6 +1149,8 @@
         params.append("sleepTimeout", sleepTimeout);
         params.append("autoWake", autoWake ? "1" : "0");
         params.append("wakeDelay", wakeDelay);
+        params.append("powerSurgeWake", surgeWake ? "1" : "0");
+        params.append("powerSurgeThreshold", surgeThreshold);
 
         const res = await fetch("/lcd/power", {
           method: "POST",

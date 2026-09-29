@@ -25,6 +25,9 @@ static bool isAutoSleep = true;
 static uint32_t autoSleepTimeoutMs = 30000;  // 30 detik
 static bool isAutoWake = false;
 static uint32_t autoWakeDelayMs = 300000;    // 300 detik (5 menit)
+static bool isPowerSurgeWake = false;
+static float powerSurgeThresholdWatt = 500.0f; // Default 500 Watt
+static float lastSurgeCheckPower = 0.0f;
 static DisplayPage currentPage = PAGE_POWER_METER; // Default to Power Meter
 static int screenIndex = 0; // 0 = Power Meter, 1..N = Server 1..N
 
@@ -41,6 +44,9 @@ void loadLcdSettings() {
         uint32_t wakeSec = prefs.getUInt("wake_del", 300);
         if (wakeSec < 5) wakeSec = 300;
         autoWakeDelayMs = wakeSec * 1000;
+        isPowerSurgeWake = prefs.getBool("surge_en", false);
+        powerSurgeThresholdWatt = prefs.getFloat("surge_w", 500.0f);
+        if (powerSurgeThresholdWatt < 10.0f) powerSurgeThresholdWatt = 500.0f;
         prefs.end();
     }
 }
@@ -54,6 +60,8 @@ void saveLcdSettings() {
         prefs.putUInt("sleep_to", autoSleepTimeoutMs / 1000);
         prefs.putBool("autowake", isAutoWake);
         prefs.putUInt("wake_del", autoWakeDelayMs / 1000);
+        prefs.putBool("surge_en", isPowerSurgeWake);
+        prefs.putFloat("surge_w", powerSurgeThresholdWatt);
         prefs.end();
     }
 }
@@ -105,6 +113,47 @@ bool isAutoWakeEnabled() {
 
 uint32_t getAutoWakeDelay() {
     return autoWakeDelayMs / 1000;
+}
+
+void setPowerSurgeWake(bool enabled, float thresholdWatt) {
+    isPowerSurgeWake = enabled;
+    if (thresholdWatt >= 10.0f) {
+        powerSurgeThresholdWatt = thresholdWatt;
+    }
+    saveLcdSettings();
+}
+
+bool isPowerSurgeWakeEnabled() {
+    return isPowerSurgeWake;
+}
+
+float getPowerSurgeThreshold() {
+    return powerSurgeThresholdWatt;
+}
+
+void checkPowerSurge(float currentPower) {
+    if (!isPowerSurgeWake || isnan(currentPower)) {
+        lastSurgeCheckPower = currentPower;
+        return;
+    }
+
+    // Deteksi lonjakan daya:
+    // 1. Daya melompati ambang batas dari bawah ke atas (previous < threshold && current >= threshold)
+    // 2. ATAU kenaikan mendadak sebesar >= threshold (current - previous >= threshold) dengan daya minimal 50W
+    bool crossedThreshold = (lastSurgeCheckPower < powerSurgeThresholdWatt && currentPower >= powerSurgeThresholdWatt);
+    bool suddenJump = ((currentPower - lastSurgeCheckPower) >= powerSurgeThresholdWatt && currentPower >= 50.0f);
+
+    if (crossedThreshold || suddenJump) {
+        Serial.printf("[LCD] Power surge detected! (Prev: %.1fW, Curr: %.1fW, Thr: %.0fW) -> Waking screen\n", 
+                      lastSurgeCheckPower, currentPower, powerSurgeThresholdWatt);
+        lcdWake();
+        // Otomatis arahkan ke halaman Power Meter jika sedang di Server Monitor
+        if (getDisplayPage() != PAGE_POWER_METER) {
+            setScreenIndex(0); // Power Meter page
+        }
+    }
+
+    lastSurgeCheckPower = currentPower;
 }
 
 void setDisplayPage(DisplayPage page) {
